@@ -35,6 +35,7 @@ export default function Pantalla1() {
                 <Texto>Bienvenidos a Pantalla 1</Texto>
                 <Texto>HOLA SOY CHRIS</Texto>
                 <Texto>Hola de nuevo</Texto>
+                <Texto>Hola de nuevo felipe</Texto>
                 <StyledInput
                     placeholder="Escribe algo"
                     placeholderTextColor={currentTheme.Colors.text}
