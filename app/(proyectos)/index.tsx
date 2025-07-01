@@ -38,6 +38,7 @@ export default function Pantalla1() {
                 <Texto>Hola de nuevo felipe</Texto>
                 <Texto>ya wey soy cesar</Texto>
                 <Text>mira</Text>
+                <Text>prueva de ajuste</Text>
                 <StyledInput
                     placeholder="Escribe algo"
                     placeholderTextColor={currentTheme.Colors.text}
