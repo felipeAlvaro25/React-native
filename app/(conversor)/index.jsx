@@ -1,5 +1,5 @@
+import { router } from "expo-router";
 import { default as styled } from "styled-components/native";
-import{router} from "expo-router"
 
 
 export default function index() {
@@ -7,6 +7,7 @@ export default function index() {
         <Container>
             <Icono source="https://i.postimg.cc/XqTrYg1K/cinta-metrica.png"/>
                 <Titulo>Inicio de Conversor</Titulo>
+                <Titulo>sirve???</Titulo>
                 <SubTitulo>(cm) a (m)</SubTitulo>
                 <BotonInicio onPress={()=>router.push("conversor")}>
                     <TextoBoton>convertir</TextoBoton>
