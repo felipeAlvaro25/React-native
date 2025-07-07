@@ -1,7 +1,7 @@
 import { Link, router } from "expo-router";
 import { AntDesign, Entypo, MaterialIcons } from "@expo/vector-icons";
 import { styled } from "styled-components/native";
-import { FlatList, Alert, Text, TouchableOpacity, View, Image, ActivityIndicator, ScrollView, Animated, Dimensions } from "react-native";
+import { FlatList, Alert, Text, TouchableOpacity, View, Image, ActivityIndicator, Animated, Dimensions } from "react-native";
 import { auth } from '../Firebase/firebaseconfig';
 import { signOut } from 'firebase/auth';
 import { useEffect, useState, useRef } from 'react';
@@ -15,18 +15,30 @@ type Ruta = {
     href: AppRoute;
 };
 
+// Actualiza el tipo Producto para incluir todos los campos
 type Producto = {
     id: string;
     nombre: string;
     descripcion: string;
     precio: number;
     stock: number;
+    categoria: string;
     imagenURL?: string;
+    color?: string;
+    talla?: string;
+    tipo?: string;
+    status?: string;
+    comprados?: number;
+    marca?: string;
 };
 
 type ViewMode = 'single' | 'double';
 
-const ADMIN_EMAIL = 'felipealvaro48@gmail.com';
+const ADMIN_EMAILS = [
+  'felipealvaro48@gmail.com',
+  'admin1@example.com',  // Reemplaza con el primer correo adicional
+  'admin2@example.com'   // Reemplaza con el segundo correo adicional
+];
 const API_URL = 'https://felipe25.alwaysdata.net/api/';
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -46,23 +58,70 @@ function Inicio() {
         { name: "conversor", href: "/(conversor)" },
     ];
     
-    // Función para cargar productos desde alwaysData
     const cargarProductos = async () => {
+        setLoading(true);
         try {
             const response = await fetch(`${API_URL}productos.php`);
+            if (!response.ok) throw new Error(`Error HTTP! estado: ${response.status}`);
+            
             const data = await response.json();
+            console.log('Datos de productos:', data); // Para depuración
             
             if (data.success) {
-                setProductos(data.productos);
+                setProductos(data.productos.map((p: any) => ({
+                    ...p,
+                    precio: Number(p.precio),
+                    stock: Number(p.stock),
+                    // Asegurar que la URL de imagen sea completa
+                    imagenURL: p.imagenURL ? 
+                        p.imagenURL.startsWith('http') ? 
+                            p.imagenURL : 
+                            `https://felipe25.alwaysdata.net/api/uploads/productos/${p.imagenURL}`
+                        : null
+                })));
             } else {
                 throw new Error(data.message || 'Error al cargar productos');
             }
         } catch (error) {
+            console.error("Error cargando productos:", error);
             Alert.alert('Error', 'No se pudieron cargar los productos');
-            console.error("Error cargando productos: ", error);
         } finally {
             setLoading(false);
         }
+    };
+
+    const ProductImage = ({ uri, style }: { uri?: string | null, style?: any }) => {
+        const [imgError, setImgError] = useState(false);
+        
+        if (imgError || !uri) {
+            return (
+                <View style={[style, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f0f0' }]}>
+                    <MaterialIcons name="image" size={style?.width ? style.width/3 : 40} color="#ccc" />
+                </View>
+            );
+        }
+
+        return (
+            <Image
+                source={{ uri }}
+                style={style}
+                resizeMode="cover"
+                onError={() => {
+                    console.log('Error cargando imagen:', uri);
+                    setImgError(true);
+                }}
+            />
+        );
+    };
+
+    const handleAddToCart = (producto: Producto) => {
+        Alert.alert('Producto agregado', `Se agregó ${producto.nombre} al carrito`);
+        // Aquí puedes implementar la lógica para agregar al carrito
+    };
+
+    const handleBuyNow = (producto: Producto) => {
+        Alert.alert('Compra rápida', `Redirigiendo a compra de ${producto.nombre}`);
+        // Aquí puedes implementar la lógica para compra inmediata
     };
 
     // Función para obtener el perfil del usuario
@@ -136,48 +195,92 @@ function Inicio() {
         </Link>
     );
 
-    // Renderizado para vista de un producto por fila
+    // Vista de un producto por fila (mejorada)
     const renderProductoSingle = ({ item }: { item: Producto }) => (
         <ProductoContainer>
             <ProductoImageContainer>
-                {item.imagenURL ? (
-                    <ProductoImage source={{ uri: item.imagenURL }} resizeMode="cover" />
-                ) : (
-                    <PlaceholderImage>
-                        <MaterialIcons name="image" size={50} color="#ccc" />
-                    </PlaceholderImage>
-                )}
+                <ProductImage 
+                    uri={item.imagenURL}
+                    style={{ width: '100%', height: '100%' }}
+                />
             </ProductoImageContainer>
             <ProductoInfo>
-                <ProductoNombre numberOfLines={2}>{item.nombre}</ProductoNombre>
+                <ProductoNombre>{item.nombre}</ProductoNombre>
+                
+                {item.categoria && (
+                    <ProductoCategoria>{item.categoria}</ProductoCategoria>
+                )}
+                
+                {item.marca && (
+                    <ProductoMarca>Marca: {item.marca}</ProductoMarca>
+                )}
+                
                 <ProductoDescripcion numberOfLines={3}>{item.descripcion}</ProductoDescripcion>
+                
+                {(item.color || item.talla) && (
+                    <ProductoAtributosContainer>
+                        {item.color && (
+                            <ProductoAtributo>
+                                <ProductoColorCircle color={item.color.toLowerCase()} />
+                                <ProductoAtributoText>{item.color}</ProductoAtributoText>
+                            </ProductoAtributo>
+                        )}
+                        {item.talla && (
+                            <ProductoAtributo>
+                                <MaterialIcons name="straighten" size={14} color="#666" />
+                                <ProductoAtributoText>{item.talla}</ProductoAtributoText>
+                            </ProductoAtributo>
+                        )}
+                    </ProductoAtributosContainer>
+                )}
+                
                 <ProductoDetailsContainer>
                     <ProductoPrecio>${item.precio.toFixed(2)}</ProductoPrecio>
                     <ProductoStock>Stock: {item.stock}</ProductoStock>
                 </ProductoDetailsContainer>
+                
+                <ProductoButtonsContainer>
+                    <AddToCartButton onPress={() => handleAddToCart(item)}>
+                        <AddToCartText>Agregar al carrito</AddToCartText>
+                    </AddToCartButton>
+                    <BuyNowButton onPress={() => handleBuyNow(item)}>
+                        <BuyNowText>Comprar ahora</BuyNowText>
+                    </BuyNowButton>
+                </ProductoButtonsContainer>
             </ProductoInfo>
         </ProductoContainer>
     );
 
-    // Renderizado para vista de dos productos por fila
     const renderProductoDouble = ({ item }: { item: Producto }) => (
         <ProductoContainerDouble>
             <ProductoImageContainerDouble>
-                {item.imagenURL ? (
-                    <ProductoImage source={{ uri: item.imagenURL }} resizeMode="cover" />
-                ) : (
-                    <PlaceholderImageDouble>
-                        <MaterialIcons name="image" size={40} color="#ccc" />
-                    </PlaceholderImageDouble>
-                )}
+                <ProductImage 
+                    uri={item.imagenURL}
+                    style={{ width: '100%', height: '100%' }}
+                />
             </ProductoImageContainerDouble>
             <ProductoInfoDouble>
                 <ProductoNombreDouble numberOfLines={2}>{item.nombre}</ProductoNombreDouble>
+                
+                {item.categoria && (
+                    <ProductoCategoriaDouble>{item.categoria}</ProductoCategoriaDouble>
+                )}
+                
                 <ProductoDescripcionDouble numberOfLines={2}>{item.descripcion}</ProductoDescripcionDouble>
+                
                 <ProductoDetailsContainerDouble>
                     <ProductoPrecioDouble>${item.precio.toFixed(2)}</ProductoPrecioDouble>
                     <ProductoStockDouble>Stock: {item.stock}</ProductoStockDouble>
                 </ProductoDetailsContainerDouble>
+                
+                <ProductoButtonsContainerDouble>
+                    <AddToCartButtonDouble onPress={() => handleAddToCart(item)}>
+                        <MaterialIcons name="add-shopping-cart" size={16} color="white" />
+                    </AddToCartButtonDouble>
+                    <BuyNowButtonDouble onPress={() => handleBuyNow(item)}>
+                        <MaterialIcons name="flash-on" size={16} color="white" />
+                    </BuyNowButtonDouble>
+                </ProductoButtonsContainerDouble>
             </ProductoInfoDouble>
         </ProductoContainerDouble>
     );
@@ -194,106 +297,131 @@ function Inicio() {
     };
 
     // Botón de admin para el sidebar
-    const adminButton = auth.currentUser?.email === ADMIN_EMAIL ? (
-        <Link href="/(proyectos)/agregar-producto" asChild>
-            <SidebarAdminButton onPress={closeSidebar}>
-                <SidebarIconContainer>
-                    <Primero name="pluscircleo" size={24} />
-                </SidebarIconContainer>
-                <SidebarTextContainer>
-                    <SidebarTexto>Agregar Productos</SidebarTexto>
-                </SidebarTextContainer>
-                <SidebarIconContainer>
-                    <Flecha name="arrow-with-circle-right" size={20} />
-                </SidebarIconContainer>
-            </SidebarAdminButton>
-        </Link>
+    const adminButton = ADMIN_EMAILS.includes(auth.currentUser?.email || '') ? (
+    <Link href="/(proyectos)/agregar-producto" asChild>
+        <SidebarAdminButton onPress={closeSidebar}>
+        <SidebarIconContainer>
+            <Primero name="pluscircleo" size={24} />
+        </SidebarIconContainer>
+        <SidebarTextContainer>
+            <SidebarTexto>Agregar Productos</SidebarTexto>
+        </SidebarTextContainer>
+        <SidebarIconContainer>
+            <Flecha name="arrow-with-circle-right" size={20} />
+        </SidebarIconContainer>
+        </SidebarAdminButton>
+    </Link>
     ) : null;
 
-    return (
+        return (
         <>
             <GradientBackground />
             <BlurredOverlay />
-            <MainScrollView showsVerticalScrollIndicator={false}>
-                <Container>
-                    {/* Header Section con botón de menú */}
-                    <HeaderSection>
-                        <HeaderTopRow>
-                            <MenuButton onPress={openSidebar}>
-                                <MaterialIcons name="menu" size={28} color="white" />
-                            </MenuButton>
-                            <SignOutButton onPress={handleSignOut}>
-                                <ButtonText>Cerrar sesión</ButtonText>
-                                <AntDesign name="logout" size={18} color="white" style={{ marginLeft: 8 }} />
-                            </SignOutButton>
-                        </HeaderTopRow>
-                        <WelcomeText>
-                            ¡Bienvenido {userProfile?.nombre || auth.currentUser?.email}!
-                        </WelcomeText>
-                    </HeaderSection>
-                    
-                    {/* Products Section */}
-                    <SectionContainer>
-                        <SectionHeader>
-                            <Titulo>Productos Disponibles</Titulo>
-                            <ViewModeContainer>
-                                <ViewModeButton 
-                                    active={viewMode === 'single'}
-                                    onPress={() => setViewMode('single')}
-                                >
-                                    <MaterialIcons 
-                                        name="view-agenda" 
-                                        size={18} 
-                                        color={viewMode === 'single' ? '#fff' : '#666'} 
-                                    />
-                                    <ViewModeText active={viewMode === 'single'}>
-                                        Una columna
-                                    </ViewModeText>
-                                </ViewModeButton>
-                                
-                                <ViewModeButton 
-                                    active={viewMode === 'double'}
-                                    onPress={() => setViewMode('double')}
-                                >
-                                    <MaterialIcons 
-                                        name="view-module" 
-                                        size={18} 
-                                        color={viewMode === 'double' ? '#fff' : '#666'} 
-                                    />
-                                    <ViewModeText active={viewMode === 'double'}>
-                                        Dos columnas
-                                    </ViewModeText>
-                                </ViewModeButton>
-                            </ViewModeContainer>
-                        </SectionHeader>
+            <MainContainer>
+                <MainScrollView showsVerticalScrollIndicator={false}>
+                    <Container>
+                        {/* Header Section con botón de menú */}
+                        <HeaderSection>
+                            <HeaderTopRow>
+                                <MenuButton onPress={openSidebar}>
+                                    <MaterialIcons name="menu" size={28} color="white" />
+                                </MenuButton>
+                                <SignOutButton onPress={handleSignOut}>
+                                    <ButtonText>Cerrar sesión</ButtonText>
+                                    <AntDesign name="logout" size={18} color="white" style={{ marginLeft: 8 }} />
+                                </SignOutButton>
+                            </HeaderTopRow>
+                            <WelcomeText>
+                                ¡Bienvenido {userProfile?.nombre || auth.currentUser?.email}!
+                            </WelcomeText>
+                        </HeaderSection>
                         
-                        {loading ? (
-                            <LoadingContainer>
-                                <ActivityIndicator size="large" color="#ffffff" />
-                                <LoadingText>Cargando productos...</LoadingText>
-                            </LoadingContainer>
-                        ) : productos.length > 0 ? (
-                            <ProductsList 
-                                data={productos}
-                                renderItem={viewMode === 'single' ? renderProductoSingle : renderProductoDouble}
-                                keyExtractor={(item) => item.id.toString()}
-                                numColumns={viewMode === 'double' ? 2 : 1}
-                                key={viewMode}
-                                columnWrapperStyle={viewMode === 'double' ? { justifyContent: 'space-between' } : undefined}
-                                showsVerticalScrollIndicator={false}
-                                scrollEnabled={false}
-                            />
-                        ) : (
-                            <NoProductsText>No hay productos disponibles</NoProductsText>
-                        )}
-                    </SectionContainer>
+                        {/* Products Section */}
+                        <SectionContainer>
+                            <SectionHeader>
+                                <Titulo>Productos Disponibles</Titulo>
+                                <ViewModeContainer>
+                                    <ViewModeButton 
+                                        active={viewMode === 'single'}
+                                        onPress={() => setViewMode('single')}
+                                    >
+                                        <MaterialIcons 
+                                            name="view-agenda" 
+                                            size={18} 
+                                            color={viewMode === 'single' ? '#fff' : '#666'} 
+                                        />
+                                        <ViewModeText active={viewMode === 'single'}>
+                                            Una columna
+                                        </ViewModeText>
+                                    </ViewModeButton>
+                                    
+                                    <ViewModeButton 
+                                        active={viewMode === 'double'}
+                                        onPress={() => setViewMode('double')}
+                                    >
+                                        <MaterialIcons 
+                                            name="view-module" 
+                                            size={18} 
+                                            color={viewMode === 'double' ? '#fff' : '#666'} 
+                                        />
+                                        <ViewModeText active={viewMode === 'double'}>
+                                            Dos columnas
+                                        </ViewModeText>
+                                    </ViewModeButton>
+                                </ViewModeContainer>
+                            </SectionHeader>
+                            
+                            {loading ? (
+                                <LoadingContainer>
+                                    <ActivityIndicator size="large" color="#ffffff" />
+                                    <LoadingText>Cargando productos...</LoadingText>
+                                </LoadingContainer>
+                            ) : productos.length > 0 ? (
+                                <ProductsList 
+                                    data={productos}
+                                    renderItem={viewMode === 'single' ? renderProductoSingle : renderProductoDouble}
+                                    keyExtractor={(item) => item.id.toString()}
+                                    numColumns={viewMode === 'double' ? 2 : 1}
+                                    key={viewMode}
+                                    columnWrapperStyle={viewMode === 'double' ? { justifyContent: 'space-between' } : undefined}
+                                    showsVerticalScrollIndicator={false}
+                                    scrollEnabled={false}
+                                />
+                            ) : (
+                                <NoProductsText>No hay productos disponibles</NoProductsText>
+                            )}
+                        </SectionContainer>
+                        
+                        {/* Footer */}
+                        <FooterContainer>
+                            <AntDesign name="gitlab" size={60} color="#E24329"/>
+                        </FooterContainer>
+                    </Container>
+                </MainScrollView>
+                
+                {/* Barra de navegación inferior */}
+                <BottomTabBar>
+                    <TabButton onPress={() => {}}>
+                        <MaterialIcons name="home" size={24} color="#fff" />
+                        <TabButtonText>Inicio</TabButtonText>
+                    </TabButton>
                     
-                    {/* Footer */}
-                    <FooterContainer>
-                        <AntDesign name="gitlab" size={60} color="#E24329"/>
-                    </FooterContainer>
-                </Container>
-            </MainScrollView>
+                    <TabButton onPress={() => {}}>
+                        <MaterialIcons name="person" size={24} color="#fff" />
+                        <TabButtonText>Perfil</TabButtonText>
+                    </TabButton>
+                    
+                    <TabButton onPress={() => {}}>
+                        <MaterialIcons name="search" size={24} color="#fff" />
+                        <TabButtonText>Buscar</TabButtonText>
+                    </TabButton>
+                    
+                    <TabButton onPress={() => {}}>
+                        <MaterialIcons name="shopping-cart" size={24} color="#fff" />
+                        <TabButtonText>Carrito</TabButtonText>
+                    </TabButton>
+                </BottomTabBar>
+            </MainContainer>
 
             {/* Sidebar Overlay y Sidebar */}
             {sidebarVisible && (
@@ -339,9 +467,70 @@ function Inicio() {
 }
 export default Inicio; // Agregar esta línea al final del archivo
 
+const ProductoCategoria = styled(Text)`
+    font-size: 12px;
+    color: #666;
+    background-color: #f0f0f0;
+    padding: 2px 8px;
+    border-radius: 10px;
+    align-self: flex-start;
+    margin-bottom: 5px;
+`;
+
+const ProductoCategoriaDouble = styled(Text)`
+    font-size: 10px;
+    color: #666;
+    background-color: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 8px;
+    align-self: flex-start;
+    margin-bottom: 4px;
+`;
+
+const ProductoMarca = styled(Text)`
+    font-size: 12px;
+    color: #555;
+    margin-bottom: 5px;
+`;
+
+const ProductoAtributosContainer = styled(View)`
+    flex-direction: row;
+    margin-vertical: 5px;
+    flex-wrap: wrap;
+`;
+
+const ProductoAtributo = styled(View)`
+    flex-direction: row;
+    align-items: center;
+    margin-right: 10px;
+    margin-bottom: 5px;
+    background-color: #f5f5f5;
+    padding: 3px 8px;
+    border-radius: 10px;
+`;
+
+const ProductoAtributoText = styled(Text)`
+    font-size: 12px;
+    color: #666;
+    margin-left: 4px;
+`;
+
+const ProductoColorCircle = styled(View)<{ color: string }>`
+    width: 14px;
+    height: 14px;
+    border-radius: 7px;
+    background-color: ${props => props.color};
+    border: 1px solid #ddd;
+`;
+
 // Contenedor con degradado
 const GradientBackground = styled(LinearGradient).attrs({
-  colors: ['rgba(216, 23, 23, 0.5)', 'rgba(255, 200, 0, 0.5)'],
+  colors: [
+  'rgba(80, 20, 20, 0.8)',   // rojo quemado
+  'rgba(0, 0, 0, 0.85)',  // carbón
+  'rgba(67, 29, 29, 0.9)',      // negro lava
+'rgba(67, 55, 29, 0.9)'       // negro lava
+  ],
   start: { x: 0, y: 0 },
   end: { x: 1, y: 1 },
 })`
@@ -353,8 +542,8 @@ const GradientBackground = styled(LinearGradient).attrs({
 
 // Capa de blur encima del degradado
 const BlurredOverlay = styled(BlurView).attrs({
-  intensity: 50,
-  tint: 'light',
+  intensity: 40,
+  tint: 'default', // o 'dark' si el fondo queda claro
 })`
   flex: 1;
   position: absolute;
@@ -364,19 +553,20 @@ const BlurredOverlay = styled(BlurView).attrs({
 
 // Scroll principal
 const MainScrollView = styled.ScrollView`
-  flex: 1;
-  z-index: 1;
+    flex: 1;
+    z-index: 1;
+    margin-bottom: 60px;
 `;
 
 const Container = styled(View)`
     flex: 1;
-    background-color: rgba(255, 255, 255, 0.86);
+    padding-bottom: 5px;
 `;
 
 const HeaderSection = styled(View)`
     padding: 20px;
     padding-top: 40px;
-    background-color: rgba(101, 19, 195, 0.7);
+    background-color: rgba(26, 3, 51, 0.57);
 `;
 
 const HeaderTopRow = styled(View)`
@@ -389,7 +579,7 @@ const HeaderTopRow = styled(View)`
 const MenuButton = styled(TouchableOpacity)`
     padding: 8px;
     border-radius: 8px;
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(0, 0, 0, 0.2);
 `;
 
 const SectionContainer = styled(View)`
@@ -446,7 +636,7 @@ const ViewModeButton = styled(TouchableOpacity)<{ active: boolean }>`
     align-items: center;
     padding: 10px 16px;
     border-radius: 18px;
-    background-color: ${props => props.active ? 'rgba(101, 19, 195, 0.8)' : 'transparent'};
+    background-color: ${props => props.active ? 'rgba(0, 0, 0, 0.8)' : 'transparent'};
     margin: 0 2px;
 `;
 
@@ -474,7 +664,7 @@ const SidebarContainer = styled(View)`
     left: 0;
     bottom: 0;
     width: ${screenWidth * 0.8}px;
-    background-color: rgba(101, 19, 195, 0.95);
+    background-color: rgba(26, 3, 51, 0.92);
     z-index: 1001;
     shadow-color: #000;
     shadow-offset: 2px 0px;
@@ -488,9 +678,9 @@ const SidebarHeader = styled(View)`
     align-items: center;
     padding: 20px;
     padding-top: 50px;
-    background-color: rgba(101, 19, 195, 1);
-    border-bottom-width: 1px;
-    border-bottom-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(26, 3, 51, 0.57);
+    border-bottom-width: 5px;
+    border-bottom-color: rgb(138, 8, 8);
 `;
 
 const SidebarCloseButton = styled(TouchableOpacity)`
@@ -570,42 +760,30 @@ const Primero = styled(AntDesign)`
     color: rgba(239, 16, 16, 0.88);
 `;
 
-// Estilos mejorados para productos - Vista single
-const ProductoContainer = styled(View)`
-    flex-direction: row;
-    background-color:rgba(35, 90, 100, 0.47);
-    border-radius: 12px;
-    padding: 16px;
-    margin-bottom: 12px;
-    shadow-color: #000;
-    shadow-offset: 0px 2px;
-    shadow-opacity: 0.1;
-    shadow-radius: 3px;
-    elevation: 3;
-    min-height: 140px;
+const ProductoContainer = styled(LinearGradient).attrs({
+  colors: ['rgba(123, 142, 138, 0.85)', 'rgba(64, 28, 75, 0.85)'], // tus dos colores
+  start: { x: 0, y: 0 },
+  end: { x: 1, y: 1 },
+})`
+  flex-direction: row;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 12px;
+  shadow-color: #000;
+  shadow-offset: 0px 2px;
+  shadow-opacity: 0.1;
+  shadow-radius: 3px;
+  elevation: 3;
+  min-height: 140px;
 `;
 
 const ProductoImageContainer = styled(View)`
     width: 120px;
     height: 120px;
     margin-right: 16px;
-`;
-
-const ProductoImage = styled(Image)`
-    width: 100%;
-    height: 100%;
-    border-radius: 10px;
-    resize-mode: cover;
-`;
-
-const PlaceholderImage = styled(View)`
-    width: 100%;
-    height: 100%;
-    border-radius: 10px;
     background-color: #f5f5f5;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    overflow: hidden;
 `;
 
 const ProductoInfo = styled(View)`
@@ -662,23 +840,17 @@ const ProductoContainerDouble = styled(View)`
     shadow-radius: 3px;
     elevation: 3;
     width: 47%;
-    min-height: 320px;
+    min-height: 350px;
 `;
+
 
 const ProductoImageContainerDouble = styled(View)`
     width: 100%;
     height: 150px;
     margin-bottom: 12px;
-`;
-
-const PlaceholderImageDouble = styled(View)`
-    width: 100%;
-    height: 100%;
-    border-radius: 8px;
     background-color: #f5f5f5;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    overflow: hidden;
 `;
 
 const ProductoInfoDouble = styled(View)`
@@ -749,5 +921,104 @@ const FooterContainer = styled(View)`
     align-items: center;
     justify-content: center;
     padding: 20px;
-    background-color: rgba(19, 163, 195, 0.3);
+`;
+
+// Estilos para los botones (vista single)
+const ProductoButtonsContainer = styled(View)`
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: 10px;
+`;
+
+const AddToCartButton = styled(TouchableOpacity)`
+    background-color: #4CAF50;
+    padding: 10px 15px;
+    border-radius: 8px;
+    flex: 1;
+    margin-right: 8px;
+    align-items: center;
+    justify-content: center;
+`;
+
+const BuyNowButton = styled(TouchableOpacity)`
+    background-color: #E24329;
+    padding: 10px 15px;
+    border-radius: 8px;
+    flex: 1;
+    margin-left: 8px;
+    align-items: center;
+    justify-content: center;
+`;
+
+const AddToCartText = styled(Text)`
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+`;
+
+const BuyNowText = styled(Text)`
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+`;
+
+// Estilos para los botones (vista double)
+const ProductoButtonsContainerDouble = styled(View)`
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: 10px;
+`;
+
+const AddToCartButtonDouble = styled(TouchableOpacity)`
+    background-color: #4CAF50;
+    padding: 8px;
+    border-radius: 6px;
+    flex: 1;
+    margin-right: 4px;
+    align-items: center;
+    justify-content: center;
+`;
+
+const BuyNowButtonDouble = styled(TouchableOpacity)`
+    background-color: #E24329;
+    padding: 8px;
+    border-radius: 6px;
+    flex: 1;
+    margin-left: 4px;
+    align-items: center;
+    justify-content: center;
+`;
+
+const MainContainer = styled(View)`
+    flex: 1;
+`;
+
+const BottomTabBar = styled(View)`
+    flex-direction: row;
+    height: 60px;
+    background-color:rgba(26, 3, 51, 0.57);
+    border-top-width: 1px;
+    border-top-left-radius: 10px;
+    border-top-right-radius: 10px;
+    border-top-color: rgba(255, 255, 255, 0.2);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    z-index: 10;
+`;
+
+const TabButton = styled(TouchableOpacity)`
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    padding: 5px 0;
+    background-color: ${props => props.active ? 'rgba(255, 255, 255, 0.1)' : 'transparent'};
+`;
+
+const TabButtonText = styled(Text)`
+    color: white;
+    font-size: 12px;
+    margin-top: 4px;
+    font-weight: ${props => props.active ? 'bold' : 'normal'};
 `;

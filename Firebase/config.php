@@ -1,18 +1,19 @@
 <?php
-header('Access-Control-Allow-Origin: *');
-header('Content-Type: application/json');
-header('Access-Control-Allow-Methods: POST, GET, PUT, DELETE');
-header('Access-Control-Allow-Headers: Access-Control-Allow-Headers, Content-Type, Access-Control-Allow-Methods, Authorization, X-Requested-With');
+$servername = "mysql-felipe25.alwaysdata.net";
+$username = "felipe25";
+$password = "Armando4825";
+$database = "felipe25_48";
 
-$host = 'mysql-felipe25.alwaysdata.net';
-$dbname = 'felipe25_48';
-$username = 'felipe25';
-$password = 'Armando4825';
+// Crear conexión con manejo de errores
+$conn = new mysqli($servername, $username, $password, $database);
 
-try {
-    $pdo = new PDO("mysql:host=$host;dbname=$dbname", $username, $password);
-    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch (PDOException $e) {
-    die("Error de conexión: " . $e->getMessage());
+if ($conn->connect_error) {
+    error_log("Error de conexión: " . $conn->connect_error);
+    die(json_encode([
+        'success' => false,
+        'message' => 'Error de conexión a la base de datos'
+    ]));
 }
+
+$conn->set_charset("utf8mb4");
 ?>

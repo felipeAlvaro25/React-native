@@ -1,23 +1,42 @@
 <?php
-require 'config.php';
+header('Access-Control-Allow-Origin: *');
+header('Content-Type: application/json; charset=utf-8');
+require_once 'config.php';
 
-header('Content-Type: application/json');
+$response = [];
 
 try {
-    $query = "SELECT * FROM productos";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute();
-    
-    $productos = $stmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    echo json_encode([
+    if (!isset($conn) || $conn->connect_error) {
+        throw new Exception('Error de conexión a la base de datos');
+    }
+
+    $sql = "SELECT id, nombre, descripcion, precio, stock, imagenURL FROM productos WHERE status = 'activo'";
+    $result = $conn->query($sql);
+
+    if (!$result) {
+        throw new Exception('Error en consulta: ' . $conn->error);
+    }
+
+    $productos = [];
+    while($row = $result->fetch_assoc()) {
+        $productos[] = $row;
+    }
+
+    $response = [
         'success' => true,
         'productos' => $productos
-    ]);
-} catch (PDOException $e) {
-    echo json_encode([
+    ];
+
+} catch (Exception $e) {
+    $response = [
         'success' => false,
-        'message' => 'Error al obtener productos: ' . $e->getMessage()
-    ]);
+        'message' => $e->getMessage()
+    ];
+} finally {
+    if (isset($conn)) {
+        $conn->close();
+    }
 }
+
+echo json_encode($response, JSON_UNESCAPED_UNICODE);
 ?>

@@ -11,7 +11,11 @@ import { initializeDatabase } from '../Firebase/Firebase';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from 'firebase/auth';
 
 // Configuración
-const ADMIN_EMAIL = 'felipealvaro48@gmail.com';
+const ADMIN_EMAILS = [
+  'felipealvaro48@gmail.com',
+  'admin1@example.com',  // Reemplaza con el primer correo adicional
+  'admin2@example.com'   // Reemplaza con el segundo correo adicional
+];
 const API_URL = 'https://felipe25.alwaysdata.net/api/';
 
 interface FormData {
@@ -325,8 +329,8 @@ const validateAndCreateTables = async () => {
               <ButtonText>Cerrar sesión</ButtonText>
             </AuthButton>
             
-            {/* Solo visible para el admin */}
-            {user.email === ADMIN_EMAIL && (
+            {/* Solo visible para los admins */}
+            {ADMIN_EMAILS.includes(user.email) && (
               <>
                 <Link href="/(proyectos)/agregar-producto" asChild>
                   <AuthButton style={{ backgroundColor: '#4CAF50' }}>
