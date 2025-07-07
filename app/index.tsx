@@ -13,8 +13,8 @@ import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWith
 // Configuración
 const ADMIN_EMAILS = [
   'felipealvaro48@gmail.com',
-  'admin1@example.com',  // Reemplaza con el primer correo adicional
-  'admin2@example.com'   // Reemplaza con el segundo correo adicional
+  'cesarapsricio@gmail.coml',  // Reemplaza con el primer correo adicional
+  'christoferj2002@gmail.com'   // Reemplaza con el segundo correo adicional
 ];
 const API_URL = 'https://felipe25.alwaysdata.net/api/';
 

@@ -6,27 +6,27 @@ header('Access-Control-Allow-Headers: Content-Type');
 
 require_once 'config.php';
 
-// Función para validar tablas (la misma que tenías)
+// Función para validar tablas
 function validarTablas($conn) {
-    $tablasRequeridas = ['usuarios', 'proveedores', 'productos', 'carrito', 'detalles_compra'];
+    $tablasRequeridas = ['usuarios', 'proveedores', 'productos', 'carrito', 'detalles_compra', 'categorias', 'tipo_producto'];
     $tablasExistentes = [];
     $tablasFaltantes = [];
-    
+
     $query = "SHOW TABLES";
     $result = mysqli_query($conn, $query);
-    
+
     if ($result) {
         while ($row = mysqli_fetch_array($result)) {
             $tablasExistentes[] = $row[0];
         }
     }
-    
+
     foreach ($tablasRequeridas as $tabla) {
         if (!in_array($tabla, $tablasExistentes)) {
             $tablasFaltantes[] = $tabla;
         }
     }
-    
+
     return [
         'todasExisten' => empty($tablasFaltantes),
         'existentes' => $tablasExistentes,
@@ -35,16 +35,30 @@ function validarTablas($conn) {
     ];
 }
 
-// Función para crear tablas (la misma que tenías)
+// Función para crear tablas faltantes e insertar categorías
 function crearTablasFaltantes($conn) {
     $sql = "
+    CREATE TABLE IF NOT EXISTS categorias (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        nombre VARCHAR(100) NOT NULL UNIQUE
+    );
+
+    CREATE TABLE IF NOT EXISTS tipo_producto (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        tipo VARCHAR(100) NOT NULL,
+        categoria INT NOT NULL,
+        FOREIGN KEY (categoria) REFERENCES categorias(id) ON DELETE CASCADE
+    );
+
     CREATE TABLE IF NOT EXISTS proveedores (
         id INT AUTO_INCREMENT PRIMARY KEY,
         nombre VARCHAR(100) NOT NULL,
         ruc VARCHAR(20) UNIQUE NOT NULL,
         logo VARCHAR(255),
+        categoria INT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (categoria) REFERENCES categorias(id) ON DELETE SET NULL
     );
 
     CREATE TABLE IF NOT EXISTS usuarios (
@@ -56,6 +70,7 @@ function crearTablasFaltantes($conn) {
         usuario VARCHAR(100),
         edad INT,
         direccion TEXT,
+        imagen VARCHAR(255),
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
@@ -69,6 +84,7 @@ function crearTablasFaltantes($conn) {
         imagenURL VARCHAR(255),
         color VARCHAR(50),
         talla VARCHAR(20),
+        sexo VARCHAR(20),
         tipo VARCHAR(50),
         status ENUM('activo', 'inactivo', 'agotado') DEFAULT 'activo',
         comprados INT DEFAULT 0,
@@ -106,11 +122,20 @@ function crearTablasFaltantes($conn) {
     ";
 
     if (mysqli_multi_query($conn, $sql)) {
+        // Procesar múltiples resultados
         do {
             if ($resultado = mysqli_store_result($conn)) {
                 mysqli_free_result($resultado);
             }
         } while (mysqli_next_result($conn));
+
+        // Insertar categorías por defecto
+        $categorias = ['zapatillas', 'reloj', 'ropa'];
+        foreach ($categorias as $cat) {
+            $cat = mysqli_real_escape_string($conn, $cat);
+            mysqli_query($conn, "INSERT IGNORE INTO categorias (nombre) VALUES ('$cat')");
+        }
+
         return true;
     } else {
         return false;
@@ -120,23 +145,22 @@ function crearTablasFaltantes($conn) {
 // Función principal
 function inicializarBaseDatos($conn) {
     $validacion = validarTablas($conn);
-    
+
     $response = [
         'success' => false,
         'message' => '',
         'data' => $validacion
     ];
-    
+
     if ($validacion['todasExisten']) {
         $response['success'] = true;
         $response['message'] = 'Todas las tablas requeridas existen';
     } else {
         if (crearTablasFaltantes($conn)) {
             $validacionFinal = validarTablas($conn);
-            
             if ($validacionFinal['todasExisten']) {
                 $response['success'] = true;
-                $response['message'] = 'Tablas creadas exitosamente';
+                $response['message'] = 'Tablas creadas exitosamente con categorías insertadas';
                 $response['data'] = $validacionFinal;
             } else {
                 $response['message'] = 'Error: No se pudieron crear todas las tablas';
@@ -145,7 +169,7 @@ function inicializarBaseDatos($conn) {
             $response['message'] = 'Error al crear las tablas: ' . mysqli_error($conn);
         }
     }
-    
+
     return $response;
 }
 

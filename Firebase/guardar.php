@@ -27,28 +27,82 @@ try {
         throw new Exception('Error al configurar charset: ' . $conn->error);
     }
 
-    // Manejar GET para obtener proveedores
+        // Manejar GET para obtener categorías o proveedores
     if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+
+        // Obtener categorías
+        if (isset($_GET['categorias'])) {
+            $sql = "SELECT id, nombre FROM categoria ORDER BY nombre ASC";
+            $result = $conn->query($sql);
+
+            if (!$result) {
+                throw new Exception('Error en consulta de categorías: ' . $conn->error);
+            }
+
+            $categorias = [];
+            while($row = $result->fetch_assoc()) {
+                $categorias[] = $row;
+            }
+
+            $response = [
+                'success' => true,
+                'categorias' => $categorias
+            ];
+
+            echo json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        // Obtener proveedores por categoría
+        if (isset($_GET['proveedores_por_categoria']) && isset($_GET['id_categoria'])) {
+            $id_categoria = intval($_GET['id_categoria']);
+
+            $sql = "SELECT id, nombre FROM proveedores WHERE categoria = ? ORDER BY nombre ASC";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("i", $id_categoria);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            if (!$result) {
+                throw new Exception('Error en consulta de proveedores por categoría: ' . $conn->error);
+            }
+
+            $proveedores = [];
+            while($row = $result->fetch_assoc()) {
+                $proveedores[] = $row;
+            }
+
+            $response = [
+                'success' => true,
+                'proveedores' => $proveedores
+            ];
+
+            echo json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        // Obtener todos los proveedores si no se envía filtro
         $sql = "SELECT id, nombre FROM proveedores ORDER BY nombre ASC";
         $result = $conn->query($sql);
         
         if (!$result) {
             throw new Exception('Error en consulta de proveedores: ' . $conn->error);
         }
-        
+
         $proveedores = [];
         while($row = $result->fetch_assoc()) {
             $proveedores[] = $row;
         }
-        
+
         $response = [
             'success' => true,
             'proveedores' => $proveedores
         ];
-        
+
         echo json_encode($response, JSON_UNESCAPED_UNICODE);
         exit();
     }
+
 
     // Manejar POST para guardar productos
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {

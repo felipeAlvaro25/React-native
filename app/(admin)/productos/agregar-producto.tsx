@@ -9,22 +9,17 @@ import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
 
 // Firebase (solo para autenticación)
-import { auth } from '../../Firebase/firebaseconfig';
+import { auth } from '../../../Firebase/firebaseconfig';
 
+// Configuración
 // Configuración
 const ADMIN_EMAILS = [
   'felipealvaro48@gmail.com',
-  'admin1@example.com',
-  'admin2@example.com'
+  'cesarapsricio@gmail.coml',  // Reemplaza con el primer correo adicional
+  'christoferj2002@gmail.com'   // Reemplaza con el segundo correo adicional
 ];
 const API_URL = 'https://felipe25.alwaysdata.net/api/guardar.php';
 
-// Opciones para los selects
-const CATEGORIAS = [
-  'Ropa',
-  'zapatillas',
-  'reloj'
-];
 
 const TIPOS_PRODUCTO = [
   'Físico',
@@ -60,6 +55,9 @@ export default function AgregarProducto() {
   const [error, setError] = useState('');
   const [marcas, setMarcas] = useState([]);
   const [loadingMarcas, setLoadingMarcas] = useState(false);
+  const [categorias, setCategorias] = useState([]);
+  const [loadingCategorias, setLoadingCategorias] = useState(false);
+
 
   // Verificar permisos de administrador
   if (!ADMIN_EMAILS.includes(auth.currentUser?.email || '')) {
@@ -72,6 +70,29 @@ export default function AgregarProducto() {
       </Container>
     );
   }
+
+    useEffect(() => {
+    const cargarCategorias = async () => {
+      setLoadingCategorias(true);
+      try {
+        const response = await fetch(`${API_URL}?categorias`);
+        const data = await response.json();
+
+        if (data.success) {
+          setCategorias(data.categorias);
+        } else {
+          setError(data.message || 'Error al cargar categorías');
+        }
+      } catch (err) {
+        console.error(err);
+        setError('No se pudo cargar categorías');
+      } finally {
+        setLoadingCategorias(false);
+      }
+    };
+
+    cargarCategorias();
+  }, []);
 
 // Cargar proveedores al iniciar
   useEffect(() => {
@@ -103,6 +124,31 @@ export default function AgregarProducto() {
     
     cargarProveedores();
   }, []);
+
+  useEffect(() => {
+  const cargarProveedoresPorCategoria = async () => {
+    if (!formData.categoria) return;
+    setLoadingMarcas(true);
+    try {
+      const response = await fetch(`${API_URL}?proveedores_por_categoria&id_categoria=${formData.categoria}`);
+      const data = await response.json();
+
+      if (data.success) {
+        setMarcas(data.proveedores);
+      } else {
+        setError(data.message || 'Error al cargar proveedores');
+      }
+    } catch (error) {
+      console.error('Error al cargar proveedores:', error);
+      setError('Error al conectar con el servidor');
+    } finally {
+      setLoadingMarcas(false);
+    }
+  };
+
+  cargarProveedoresPorCategoria();
+}, [formData.categoria]);
+
 
   const handleChange = (field, value) => {
     setFormData(prev => ({
@@ -348,11 +394,12 @@ const handleAgregarProducto = async () => {
               selectedValue={formData.categoria}
               onValueChange={(itemValue) => handleChange('categoria', itemValue)}>
               <Picker.Item label="Seleccione una categoría" value="" />
-              {CATEGORIAS.map((cat) => (
-                <Picker.Item key={cat} label={cat} value={cat} />
+              {categorias.map((cat) => (
+                <Picker.Item key={cat.id} label={cat.nombre} value={cat.id.toString()} />
               ))}
             </Picker>
           </PickerContainer>
+
 
           <Label>TIPO DE PRODUCTO</Label>
           <PickerContainer>
