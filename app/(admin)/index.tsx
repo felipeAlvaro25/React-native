@@ -1,7 +1,6 @@
-import { Alert } from 'react-native';
-import { styled } from 'styled-components/native';
-import { Link } from 'expo-router';
 import { MaterialCommunityIcons } from '@expo/vector-icons'; // For icons
+import { Link } from 'expo-router';
+import { styled } from 'styled-components/native';
 
 export default function AdminDashboardCards() {
   return (
