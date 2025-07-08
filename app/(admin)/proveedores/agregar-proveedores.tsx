@@ -1,63 +1,35 @@
-// Importación correcta de hooks comunes
-import { useState, useEffect } from 'react';
-import { Alert, ScrollView, View, TouchableOpacity, Text, ActivityIndicator, Image, Platform } from 'react-native';
-import { styled } from 'styled-components/native';
-import { Link, router } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
-import { Picker } from '@react-native-picker/picker';
 import { Ionicons } from '@expo/vector-icons';
+import { Picker } from '@react-native-picker/picker';
+import * as FileSystem from 'expo-file-system';
+import * as ImagePicker from 'expo-image-picker';
+import { Link, router } from 'expo-router';
+import { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Platform, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import { styled } from 'styled-components/native';
 
 // Firebase (solo para autenticación)
 import { auth } from '../../../Firebase/firebaseconfig';
 
 // Configuración
-// Configuración
 const ADMIN_EMAILS = [
   'felipealvaro48@gmail.com',
-  'cesarapsricio@gmail.coml',  // Reemplaza con el primer correo adicional
-  'christoferj2002@gmail.com'   // Reemplaza con el segundo correo adicional
+  'cesarapsricio@gmail.com',
+  'christoferj2002@gmail.com'
 ];
 const API_URL = 'https://felipe25.alwaysdata.net/api/guardar.php';
 
-
-const TIPOS_PRODUCTO = [
-  'Físico',
-  'Digital',
-  'Servicio'
-];
-
-const TALLAS = [
-  'XS', 'S', 'M', 'L', 'XL', 'XXL'
-];
-
-const COLORES = [
-  'Rojo', 'Azul', 'Verde', 'Negro', 'Blanco', 'Amarillo', 
-  'Rosa', 'Morado', 'Gris', 'Naranja'
-];
-
-export default function AgregarProducto() {
+export default function AgregarProveedor() {
   const [formData, setFormData] = useState({
     nombre: '',
-    descripcion: '',
-    precio: '',
-    stock: '',
-    categoria: '',
-    color: '',
-    talla: '',
-    tipo: 'Físico',
-    marca: '',
-    status: 'activo'
+    ruc: '',
+    categoria: ''
   });
   
   const [selectedImage, setSelectedImage] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [marcas, setMarcas] = useState([]);
-  const [loadingMarcas, setLoadingMarcas] = useState(false);
   const [categorias, setCategorias] = useState([]);
   const [loadingCategorias, setLoadingCategorias] = useState(false);
-
 
   // Verificar permisos de administrador
   if (!ADMIN_EMAILS.includes(auth.currentUser?.email || '')) {
@@ -71,7 +43,8 @@ export default function AgregarProducto() {
     );
   }
 
-    useEffect(() => {
+  // Cargar categorías al iniciar
+  useEffect(() => {
     const cargarCategorias = async () => {
       setLoadingCategorias(true);
       try {
@@ -94,63 +67,15 @@ export default function AgregarProducto() {
     cargarCategorias();
   }, []);
 
-// Cargar proveedores al iniciar
-  useEffect(() => {
-    const cargarProveedores = async () => {
-      setLoadingMarcas(true);
-      try {
-        const response = await fetch(API_URL, {
-          method: 'GET'
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Error HTTP! estado: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-          setMarcas(data.proveedores);
-        } else {
-          setError(data.message || 'Error al cargar proveedores');
-        }
-      } catch (error) {
-        console.error('Error cargando proveedores:', error);
-        setError('No se pudo conectar con el servidor');
-      } finally {
-        setLoadingMarcas(false);
-      }
-    };
-    
-    cargarProveedores();
-  }, []);
-
-  useEffect(() => {
-  const cargarProveedoresPorCategoria = async () => {
-    if (!formData.categoria) return;
-    setLoadingMarcas(true);
-    try {
-      const response = await fetch(`${API_URL}?proveedores_por_categoria&id_categoria=${formData.categoria}`);
-      const data = await response.json();
-
-      if (data.success) {
-        setMarcas(data.proveedores);
-      } else {
-        setError(data.message || 'Error al cargar proveedores');
-      }
-    } catch (error) {
-      console.error('Error al cargar proveedores:', error);
-      setError('Error al conectar con el servidor');
-    } finally {
-      setLoadingMarcas(false);
-    }
-  };
-
-  cargarProveedoresPorCategoria();
-}, [formData.categoria]);
-
-
   const handleChange = (field, value) => {
+    // Validar RUC si es el campo que está cambiando
+    if (field === 'ruc') {
+      // Solo permitir números y máximo 13 caracteres (típico para RUC)
+      const numericValue = value.replace(/[^0-9]/g, '');
+      if (numericValue.length > 13) return; // No permitir más de 13 dígitos
+      value = numericValue;
+    }
+    
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -161,7 +86,6 @@ export default function AgregarProducto() {
   // Función para seleccionar imagen
   const pickImage = async () => {
     try {
-      // Pedir permisos
       const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
       
       if (permissionResult.granted === false) {
@@ -169,30 +93,16 @@ export default function AgregarProducto() {
         return;
       }
 
-      // Mostrar opciones para web/emulador
-      if (Platform.OS === 'web') {
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.8,
-          base64: true,
-        });
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [1, 1],
+        quality: 0.8,
+        base64: Platform.OS === 'web',
+      });
 
-        if (!result.canceled) {
-          setSelectedImage(result.assets[0]);
-        }
-      } else {
-        // Para dispositivos móviles - mostrar opciones
-        Alert.alert(
-          'Seleccionar imagen',
-          'Elige una opción',
-          [
-            { text: 'Cámara', onPress: () => openCamera() },
-            { text: 'Galería', onPress: () => openGallery() },
-            { text: 'Cancelar', style: 'cancel' }
-          ]
-        );
+      if (!result.canceled) {
+        setSelectedImage(result.assets[0]);
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -200,105 +110,65 @@ export default function AgregarProducto() {
     }
   };
 
-  const openCamera = async () => {
-    try {
-      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-      
-      if (permissionResult.granted === false) {
-        Alert.alert('Error', 'Se necesitan permisos para usar la cámara');
-        return;
-      }
+  // Función para validar el formulario
+  const validarFormulario = () => {
+    const { nombre, ruc, categoria } = formData;
 
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled) {
-        setSelectedImage(result.assets[0]);
-      }
-    } catch (error) {
-      console.error('Error opening camera:', error);
-      Alert.alert('Error', 'Error al abrir la cámara');
+    if (!nombre.trim()) {
+      setError('El nombre del proveedor es obligatorio');
+      return false;
     }
+
+    if (!ruc.trim()) {
+      setError('El RUC es obligatorio');
+      return false;
+    }
+
+    if (ruc.length < 4) {
+      setError('El RUC debe tener al menos 4 dígitos');
+      return false;
+    }
+
+    if (!categoria) {
+      setError('Debe seleccionar una categoría');
+      return false;
+    }
+
+    if (!selectedImage) {
+      setError('Debe seleccionar una imagen para el proveedor');
+      return false;
+    }
+
+    return true;
   };
 
-  const openGallery = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled) {
-        setSelectedImage(result.assets[0]);
-      }
-    } catch (error) {
-      console.error('Error opening gallery:', error);
-      Alert.alert('Error', 'Error al abrir la galería');
-    }
-  };
-
-  // Función para convertir imagen a base64
-  const getBase64FromUri = async (uri) => {
-    try {
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      return base64;
-    } catch (error) {
-      console.error('Error converting to base64:', error);
-      return null;
-    }
-  };
-
-const handleAgregarProducto = async () => {
-    // Validar campos requeridos
-    const requiredFields = ['nombre', 'descripcion', 'precio', 'stock', 'categoria'];
-    const missingFields = requiredFields.filter(field => !formData[field]);
-    
-    if (missingFields.length > 0) {
-      setError(`Faltan campos obligatorios: ${missingFields.join(', ')}`);
-      return;
-    }
+  // Función para guardar proveedor
+  const handleAgregarProveedor = async () => {
+    if (!validarFormulario()) return;
 
     setLoading(true);
 
     try {
-      // Preparar datos para enviar - incluyendo TODOS los campos
-      const productoData = {
+      // Preparar datos para enviar
+      const proveedorData = {
         nombre: formData.nombre,
-        descripcion: formData.descripcion, // Mantenido como 'descripcion'
-        precio: Number(formData.precio),
-        stock: Number(formData.stock),
+        ruc: formData.ruc,
         categoria: formData.categoria,
-        color: formData.color || null,
-        talla: formData.talla || null,
-        tipo: formData.tipo || 'Físico',
-        status: formData.status || 'activo',
-        comprados: 0, // Valor por defecto
-        marca: formData.marca || null
+        accion: 'guardar_proveedor' // Indicador para el backend
       };
 
-      // Procesar imagen si existe
-      if (selectedImage) {
-        let imageBase64 = '';
-        
-        if (Platform.OS === 'web' && selectedImage.base64) {
-          imageBase64 = selectedImage.base64;
-        } else if (selectedImage.uri) {
-          imageBase64 = await FileSystem.readAsStringAsync(selectedImage.uri, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-        }
+      // Procesar imagen
+      let imageBase64 = '';
+      if (Platform.OS === 'web' && selectedImage.base64) {
+        imageBase64 = selectedImage.base64;
+      } else if (selectedImage.uri) {
+        imageBase64 = await FileSystem.readAsStringAsync(selectedImage.uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
+      }
 
-        if (imageBase64) {
-          productoData.imagenURL = imageBase64; // Mantenido como 'imagenURL'
-          productoData.imagen_tipo = selectedImage.type || 'image/jpeg';
-        }
+      if (imageBase64) {
+        proveedorData.logo = imageBase64;
       }
 
       // Enviar al servidor
@@ -307,36 +177,29 @@ const handleAgregarProducto = async () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(productoData)
+        body: JSON.stringify(proveedorData)
       });
 
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Error al guardar el producto');
+        throw new Error(result.message || 'Error al guardar el proveedor');
       }
 
-      Alert.alert('Éxito', 'Producto guardado correctamente');
+      Alert.alert('Éxito', 'Proveedor guardado correctamente');
       
       // Resetear formulario
       setFormData({
         nombre: '',
-        descripcion: '',
-        precio: '',
-        stock: '',
-        categoria: '',
-        color: '',
-        talla: '',
-        tipo: 'Físico',
-        marca: '',
-        status: 'activo'
+        ruc: '',
+        categoria: ''
       });
       setSelectedImage(null);
 
     } catch (error) {
       console.error('Error:', error);
       setError(error.message);
-      Alert.alert('Error', error.message || 'Error al guardar el producto');
+      Alert.alert('Error', error.message || 'Error al guardar el proveedor');
     } finally {
       setLoading(false);
     }
@@ -345,7 +208,7 @@ const handleAgregarProducto = async () => {
   return (
     <ScrollContainer>
       <Container>
-        <Title>Agregar Nuevo Producto</Title>
+        <Title>Agregar Nuevo Proveedor</Title>
 
         {error && (
           <ErrorText>{error}</ErrorText>
@@ -353,129 +216,42 @@ const handleAgregarProducto = async () => {
 
         {/* Sección de Información Básica */}
         <Card>
-          <SectionHeader>Información Básica</SectionHeader>
+          <SectionHeader>Información del Proveedor</SectionHeader>
           
           <Input 
-            placeholder="Nombre del producto*" 
+            placeholder="Nombre del proveedor*" 
             value={formData.nombre} 
             onChangeText={(text) => handleChange('nombre', text)} 
           />
           
           <Input 
-            placeholder="Descripción*" 
-            value={formData.descripcion} 
-            onChangeText={(text) => handleChange('descripcion', text)} 
-            multiline 
-            numberOfLines={3} 
+            placeholder="RUC* (mínimo 4 dígitos)" 
+            value={formData.ruc} 
+            onChangeText={(text) => handleChange('ruc', text)} 
+            keyboardType="numeric"
+            maxLength={13} // Máximo típico para RUC
           />
-          
-          <Input 
-            placeholder="Precio* (ej: 19.99)" 
-            value={formData.precio} 
-            onChangeText={(text) => handleChange('precio', text)} 
-            keyboardType="numeric" 
-          />
-          
-          <Input 
-            placeholder="Stock disponible*" 
-            value={formData.stock} 
-            onChangeText={(text) => handleChange('stock', text)} 
-            keyboardType="numeric" 
-          />
-        </Card>
-
-        {/* Sección de Categorización */}
-        <Card>
-          <SectionHeader>Categorización</SectionHeader>
           
           <Label>CATEGORÍA*</Label>
-          <PickerContainer>
-            <Picker
-              selectedValue={formData.categoria}
-              onValueChange={(itemValue) => handleChange('categoria', itemValue)}>
-              <Picker.Item label="Seleccione una categoría" value="" />
-              {categorias.map((cat) => (
-                <Picker.Item key={cat.id} label={cat.nombre} value={cat.id.toString()} />
-              ))}
-            </Picker>
-          </PickerContainer>
-
-
-          <Label>TIPO DE PRODUCTO</Label>
-          <PickerContainer>
-            <Picker
-              selectedValue={formData.tipo}
-              onValueChange={(itemValue) => handleChange('tipo', itemValue)}>
-              {TIPOS_PRODUCTO.map((tipo) => (
-                <Picker.Item key={tipo} label={tipo} value={tipo} />
-              ))}
-            </Picker>
-          </PickerContainer>
-
-          <Label>MARCA/PROVEEDOR</Label>
-          {loadingMarcas ? (
+          {loadingCategorias ? (
             <ActivityIndicator size="small" color="#3b82f6" />
           ) : (
             <PickerContainer>
               <Picker
-                selectedValue={formData.marca}
-                onValueChange={(itemValue) => handleChange('marca', itemValue)}>
-                <Picker.Item label="Seleccione un proveedor" value="" />
-                {marcas.map((proveedor) => (
-                  <Picker.Item 
-                    key={proveedor.id} 
-                    label={proveedor.nombre} 
-                    value={proveedor.id.toString()}
-                  />
+                selectedValue={formData.categoria}
+                onValueChange={(itemValue) => handleChange('categoria', itemValue)}>
+                <Picker.Item label="Seleccione una categoría" value="" />
+                {categorias.map((cat) => (
+                  <Picker.Item key={cat.id} label={cat.nombre} value={cat.id.toString()} />
                 ))}
               </Picker>
             </PickerContainer>
           )}
         </Card>
 
-        {/* Sección de Atributos */}
-        <Card>
-          <SectionHeader>Atributos</SectionHeader>
-          
-          <Label>COLOR</Label>
-          <PickerContainer>
-            <Picker
-              selectedValue={formData.color}
-              onValueChange={(itemValue) => handleChange('color', itemValue)}>
-              <Picker.Item label="Seleccione un color" value="" />
-              {COLORES.map((color) => (
-                <Picker.Item key={color} label={color} value={color} />
-              ))}
-            </Picker>
-          </PickerContainer>
-
-          <Label>TALLA</Label>
-          <PickerContainer>
-            <Picker
-              selectedValue={formData.talla}
-              onValueChange={(itemValue) => handleChange('talla', itemValue)}>
-              <Picker.Item label="Seleccione una talla" value="" />
-              {TALLAS.map((talla) => (
-                <Picker.Item key={talla} label={talla} value={talla} />
-              ))}
-            </Picker>
-          </PickerContainer>
-
-          <Label>ESTADO</Label>
-          <PickerContainer>
-            <Picker
-              selectedValue={formData.status}
-              onValueChange={(itemValue) => handleChange('status', itemValue)}>
-              <Picker.Item label="Activo" value="activo" />
-              <Picker.Item label="Inactivo" value="inactivo" />
-              <Picker.Item label="Agotado" value="agotado" />
-            </Picker>
-          </PickerContainer>
-        </Card>
-
         {/* Sección de Imagen */}
         <Card>
-          <SectionHeader>Imagen del Producto</SectionHeader>
+          <SectionHeader>Logo del Proveedor</SectionHeader>
           
           <ImageSection>
             <ImageButton onPress={pickImage}>
@@ -502,7 +278,7 @@ const handleAgregarProducto = async () => {
         </Card>
 
         {/* Botón de Acción */}
-        <AuthButton onPress={handleAgregarProducto} disabled={loading}>
+        <AuthButton onPress={handleAgregarProveedor} disabled={loading}>
           {loading ? (
             <ActivityIndicator color="white" />
           ) : (
@@ -510,7 +286,7 @@ const handleAgregarProducto = async () => {
               <IconWrapper>
                 <Ionicons name="add-circle" size={20} color="white" />
               </IconWrapper>
-              <ButtonText>Agregar Producto</ButtonText>
+              <ButtonText>Agregar Proveedor</ButtonText>
             </>
           )}
         </AuthButton>
@@ -525,7 +301,7 @@ const handleAgregarProducto = async () => {
   );
 }
 
-// Estilos
+// Estilos (igual que en la versión anterior)
 const ScrollContainer = styled(ScrollView)`
   flex: 1;
   background-color: #f8fafc;
