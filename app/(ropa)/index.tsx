@@ -7,7 +7,7 @@ export default function Ropa() {
     <Container>
       <Titulo>Sección de Ropa</Titulo>
 
-      <Boton onPress={() => router.push("/Cabellero")}>
+      <Boton onPress={() => router.push("/Caballero")}>
         <TextoBoton>Caballero</TextoBoton>
       </Boton>
 
