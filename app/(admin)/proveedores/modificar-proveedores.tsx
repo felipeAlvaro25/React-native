@@ -1,13 +1,12 @@
 import { Ionicons } from '@expo/vector-icons';
-import { Picker } from '@react-native-picker/picker';
 import * as FileSystem from 'expo-file-system';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Image, ScrollView, Text, TouchableOpacity, View } from 'react-native';
-import { styled } from 'styled-components/native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Image, Picker, ScrollView, Text, TouchableOpacity, View } from 'react-native';
+import styled from 'styled-components/native';
 
-// Firebase (solo para autenticación)
+// Firebase
 import { auth } from '../../../Firebase/firebaseconfig';
 
 // Configuración
@@ -16,7 +15,7 @@ const ADMIN_EMAILS = [
   'cesarapsricio@gmail.com',
   'christoferj2002@gmail.com'
 ];
-const API_URL = 'https://felipe25.alwaysdata.net/api/modificar-proveedores.php';
+const API_URL = 'https://felipe25.alwaysdata.net/api/modificar-proveedores.php ';
 
 export default function EditarProveedor() {
   const { id } = useLocalSearchParams();
@@ -26,55 +25,57 @@ export default function EditarProveedor() {
     ruc: '',
     categoria: ''
   });
-  
   const [selectedImage, setSelectedImage] = useState(null);
   const [currentImage, setCurrentImage] = useState(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState('');
   const [categorias, setCategorias] = useState([]);
-
-  // Verificar permisos de administrador
   const isAdmin = ADMIN_EMAILS.includes(auth.currentUser?.email || '');
 
-  // Cargar datos del proveedor y categorías
+  // Cargar datos iniciales
   useEffect(() => {
     if (!isAdmin) return;
+    if (!id) {
+      setError('ID del proveedor no encontrado');
+      setLoading(false);
+      return;
+    }
 
     const cargarDatos = async () => {
       try {
-        setLoading(true);
-        
+        console.log('Cargando datos del proveedor con ID:', id);
+
         // Cargar categorías
-        const categoriasResponse = await fetch(`${API_URL}?accion=obtener_categorias`);
-        const categoriasData = await categoriasResponse.json();
-        
-        if (categoriasData.success) {
-          setCategorias(categoriasData.categorias);
+        const catResponse = await fetch(`${API_URL}?accion=obtener_categorias`);
+        const catData = await catResponse.json();
+        if (catData.success && Array.isArray(catData.categorias)) {
+          setCategorias(catData.categorias);
         } else {
-          setError('Error al cargar categorías');
+          throw new Error('No se pudieron cargar las categorías');
         }
 
-        // Cargar datos del proveedor
-        const proveedorResponse = await fetch(`${API_URL}?accion=obtener_proveedor&id=${id}`);
-        const proveedorData = await proveedorResponse.json();
-        
-        if (proveedorData.success && proveedorData.proveedor) {
-          const prov = proveedorData.proveedor;
+        // Cargar proveedor
+        const provResponse = await fetch(`${API_URL}?accion=obtener_proveedor&id=${id}`);
+        const provData = await provResponse.json();
+
+        if (provData.success && provData.proveedor) {
+          const prov = provData.proveedor;
           setProveedor(prov);
-          setCurrentImage(prov.logo);
           setFormData({
             nombre: prov.nombre,
             ruc: prov.ruc,
             categoria: prov.categoria.toString()
           });
+          setCurrentImage(prov.logo);
         } else {
-          setError('Proveedor no encontrado');
+          setError(provData.message || 'Proveedor no encontrado');
           router.back();
         }
       } catch (err) {
-        console.error('Error cargando datos:', err);
-        setError('Error al cargar datos del proveedor');
+        console.error('Error al cargar datos:', err);
+        setError('Error al cargar los datos del proveedor');
+        Alert.alert('Error', 'No se pudo cargar el proveedor.');
       } finally {
         setLoading(false);
       }
@@ -83,7 +84,7 @@ export default function EditarProveedor() {
     cargarDatos();
   }, [id, isAdmin]);
 
-  // Verificar permisos de administrador al renderizar
+  // Si no es admin
   if (!isAdmin) {
     return (
       <Container>
@@ -95,51 +96,62 @@ export default function EditarProveedor() {
     );
   }
 
+  // Si está cargando
+  if (loading) {
+    return (
+      <Container>
+        <ActivityIndicator size="large" color="#3b82f6" />
+        <Text style={{ marginTop: 15 }}>Cargando...</Text>
+      </Container>
+    );
+  }
+
+  // Si no se encontró el proveedor
+  if (!proveedor) {
+    return (
+      <Container>
+        <ErrorText>No se pudo cargar el proveedor</ErrorText>
+        <AuthButton onPress={() => router.back()}>
+          <ButtonText>Volver</ButtonText>
+        </AuthButton>
+      </Container>
+    );
+  }
+
+  // Manejar cambios en los campos
   const handleChange = (field, value) => {
-    // Validar RUC si es el campo que está cambiando
     if (field === 'ruc') {
-      // Solo permitir números y máximo 13 caracteres (típico para RUC)
       const numericValue = value.replace(/[^0-9]/g, '');
-      if (numericValue.length > 13) return; // No permitir más de 13 dígitos
+      if (numericValue.length > 13) return;
       value = numericValue;
     }
-    
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => ({ ...prev, [field]: value }));
     setError('');
   };
 
-  // Función para seleccionar imagen
+  // Seleccionar imagen
   const pickImage = async () => {
-    try {
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (permissionResult.granted === false) {
-        Alert.alert('Error', 'Se necesitan permisos para acceder a las imágenes');
-        return;
-      }
+    const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (permissionResult.granted === false) {
+      Alert.alert('Necesitas permisos para acceder a las imágenes.');
+      return;
+    }
 
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-        base64: true,
-      });
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+      base64: true,
+    });
 
-      if (!result.canceled) {
-        setSelectedImage(result.assets[0]);
-        setCurrentImage(null); // Limpiar la imagen actual si se selecciona una nueva
-      }
-    } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Error al seleccionar imagen');
+    if (!result.canceled) {
+      setSelectedImage(result.assets[0]);
+      setCurrentImage(null);
     }
   };
 
-  // Función para validar el formulario
+  // Validar formulario
   const validarFormulario = () => {
     const { nombre, ruc, categoria } = formData;
 
@@ -147,40 +159,32 @@ export default function EditarProveedor() {
       setError('El nombre del proveedor es obligatorio');
       return false;
     }
-
     if (!ruc.trim()) {
       setError('El RUC es obligatorio');
       return false;
     }
-
     if (ruc.length < 4) {
       setError('El RUC debe tener al menos 4 dígitos');
       return false;
     }
-
     if (!categoria) {
       setError('Debe seleccionar una categoría');
       return false;
     }
-
-    // No requerir imagen si ya hay una actual
     if (!selectedImage && !currentImage) {
       setError('Debe seleccionar una imagen para el proveedor');
       return false;
     }
-
     return true;
   };
 
-  // Función para actualizar proveedor
+  // Enviar actualización
   const handleActualizarProveedor = async () => {
     if (!validarFormulario()) return;
-
     setUpdating(true);
     setError('');
 
     try {
-      // Preparar FormData
       const formDataToSend = new FormData();
       formDataToSend.append('accion', 'actualizar_proveedor');
       formDataToSend.append('id', id);
@@ -188,26 +192,17 @@ export default function EditarProveedor() {
       formDataToSend.append('ruc', formData.ruc);
       formDataToSend.append('categoria', formData.categoria);
 
-      // Procesar imagen solo si se seleccionó una nueva
       if (selectedImage) {
-        let imageBase64 = '';
-        if (selectedImage.base64) {
-          imageBase64 = selectedImage.base64;
-        } else if (selectedImage.uri) {
-          imageBase64 = await FileSystem.readAsStringAsync(selectedImage.uri, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-        }
-        
+        const imageBase64 = selectedImage.base64 || await FileSystem.readAsStringAsync(selectedImage.uri, {
+          encoding: FileSystem.EncodingType.Base64,
+        });
         if (imageBase64) {
           formDataToSend.append('logo', imageBase64);
         }
       } else {
-        // Mantener la imagen actual
         formDataToSend.append('mantener_imagen', '1');
       }
 
-      // Enviar al servidor
       const response = await fetch(API_URL, {
         method: 'POST',
         body: formDataToSend,
@@ -220,12 +215,8 @@ export default function EditarProveedor() {
       }
 
       Alert.alert('Éxito', 'Proveedor actualizado correctamente', [
-        {
-          text: 'OK',
-          onPress: () => router.back()
-        }
+        { text: 'OK', onPress: () => router.back() }
       ]);
-
     } catch (error) {
       console.error('Error actualizando proveedor:', error);
       const errorMessage = error.message || 'Error al actualizar el proveedor';
@@ -236,58 +227,20 @@ export default function EditarProveedor() {
     }
   };
 
-  if (loading) {
-    return (
-      <Container>
-        <ActivityIndicator size="large" color="#3b82f6" />
-      </Container>
-    );
-  }
-
-  if (!proveedor) {
-    return (
-      <Container>
-        <ErrorText>No se pudo cargar el proveedor</ErrorText>
-        <AuthButton onPress={() => router.back()}>
-          <ButtonText>Volver</ButtonText>
-        </AuthButton>
-      </Container>
-    );
-  }
-
   return (
     <ScrollContainer>
       <Container>
         <Title>Editar Proveedor</Title>
+        {error ? <ErrorText>{error}</ErrorText> : null}
 
-        {error ? (
-          <ErrorText>{error}</ErrorText>
-        ) : null}
-
-        {/* Sección de Información Básica */}
+        {/* Información básica */}
         <Card>
           <SectionHeader>Información del Proveedor</SectionHeader>
-          
-          <Input 
-            placeholder="Nombre del proveedor*" 
-            value={formData.nombre} 
-            onChangeText={(text) => handleChange('nombre', text)} 
-          />
-          
-          <Input 
-            placeholder="RUC* (mínimo 4 dígitos)" 
-            value={formData.ruc} 
-            onChangeText={(text) => handleChange('ruc', text)} 
-            keyboardType="numeric"
-            maxLength={13}
-          />
-          
+          <Input placeholder="Nombre del proveedor*" value={formData.nombre} onChangeText={(text) => handleChange('nombre', text)} />
+          <Input placeholder="RUC* (mínimo 4 dígitos)" value={formData.ruc} onChangeText={(text) => handleChange('ruc', text)} keyboardType="numeric" maxLength={13} />
           <Label>CATEGORÍA*</Label>
           <PickerContainer>
-            <Picker
-              selectedValue={formData.categoria}
-              onValueChange={(itemValue) => handleChange('categoria', itemValue)}
-            >
+            <Picker selectedValue={formData.categoria} onValueChange={(value) => handleChange('categoria', value)}>
               <Picker.Item label="Seleccione una categoría" value="" />
               {categorias.map((cat) => (
                 <Picker.Item key={cat.id} label={cat.nombre} value={cat.id.toString()} />
@@ -296,24 +249,17 @@ export default function EditarProveedor() {
           </PickerContainer>
         </Card>
 
-        {/* Sección de Imagen */}
+        {/* Imagen */}
         <Card>
           <SectionHeader>Logo del Proveedor</SectionHeader>
-          
           <ImageSection>
             <ImageButton onPress={pickImage}>
-              <IconWrapper>
-                <Ionicons name="image" size={20} color="white" />
-              </IconWrapper>
+              <IconWrapper><Ionicons name="image" size={20} color="white" /></IconWrapper>
               <ButtonText>Cambiar Imagen</ButtonText>
             </ImageButton>
-            
             {(selectedImage || currentImage) && (
               <ImagePreview>
-                <PreviewImage 
-                  source={{ uri: selectedImage?.uri || currentImage }} 
-                  resizeMode="cover"
-                />
+                <PreviewImage source={{ uri: selectedImage?.uri || currentImage }} resizeMode="cover" />
                 <RemoveImageButton onPress={() => {
                   setSelectedImage(null);
                   setCurrentImage(null);
@@ -325,20 +271,17 @@ export default function EditarProveedor() {
           </ImageSection>
         </Card>
 
-        {/* Botones de Acción */}
+        {/* Botones */}
         <AuthButton onPress={handleActualizarProveedor} disabled={updating}>
           {updating ? (
             <ActivityIndicator color="white" />
           ) : (
             <>
-              <IconWrapper>
-                <Ionicons name="save" size={20} color="white" />
-              </IconWrapper>
+              <IconWrapper><Ionicons name="save" size={20} color="white" /></IconWrapper>
               <ButtonText>Guardar Cambios</ButtonText>
             </>
           )}
         </AuthButton>
-
         <SecondaryButton onPress={() => router.back()}>
           <ButtonText>Cancelar</ButtonText>
         </SecondaryButton>
@@ -347,17 +290,15 @@ export default function EditarProveedor() {
   );
 }
 
-// Estilos (similar al componente AgregarProveedor)
+// Estilos (se pueden mejorar o mover a un archivo aparte)
 const ScrollContainer = styled(ScrollView)`
   flex: 1;
   background-color: #f8fafc;
 `;
-
 const Container = styled(View)`
   flex: 1;
   padding: 30px 25px;
 `;
-
 const Title = styled(Text)`
   font-size: 28px;
   font-weight: 700;
@@ -366,7 +307,6 @@ const Title = styled(Text)`
   color: #1e293b;
   letter-spacing: 0.5px;
 `;
-
 const Card = styled(View)`
   background-color: white;
   border-radius: 12px;
@@ -378,7 +318,6 @@ const Card = styled(View)`
   shadow-radius: 6px;
   elevation: 5;
 `;
-
 const Input = styled.TextInput`
   background-color: #f8fafc;
   padding: 16px;
@@ -388,7 +327,6 @@ const Input = styled.TextInput`
   font-size: 16px;
   color: #334155;
 `;
-
 const Label = styled(Text)`
   font-size: 15px;
   margin-bottom: 8px;
@@ -398,7 +336,6 @@ const Label = styled(Text)`
   text-transform: uppercase;
   letter-spacing: 0.5px;
 `;
-
 const PickerContainer = styled(View)`
   background-color: #f8fafc;
   border-radius: 10px;
@@ -406,11 +343,9 @@ const PickerContainer = styled(View)`
   margin-bottom: 18px;
   overflow: hidden;
 `;
-
 const ImageSection = styled(View)`
   margin-bottom: 25px;
 `;
-
 const ImageButton = styled(TouchableOpacity)`
   background-color: #3b82f6;
   padding: 16px 24px;
@@ -425,13 +360,11 @@ const ImageButton = styled(TouchableOpacity)`
   shadow-radius: 4px;
   elevation: 3;
 `;
-
 const ImagePreview = styled(View)`
   position: relative;
   align-items: center;
   margin-top: 15px;
 `;
-
 const PreviewImage = styled(Image)`
   width: 240px;
   height: 240px;
@@ -439,7 +372,6 @@ const PreviewImage = styled(Image)`
   border-width: 1px;
   border-color: #f1f5f9;
 `;
-
 const RemoveImageButton = styled(TouchableOpacity)`
   position: absolute;
   top: 12px;
@@ -456,13 +388,11 @@ const RemoveImageButton = styled(TouchableOpacity)`
   shadow-radius: 2px;
   elevation: 2;
 `;
-
 const RemoveImageText = styled(Text)`
   color: white;
   font-weight: bold;
   font-size: 14px;
 `;
-
 const AuthButton = styled(TouchableOpacity)`
   background-color: #10b981;
   padding: 18px;
@@ -479,7 +409,6 @@ const AuthButton = styled(TouchableOpacity)`
   justify-content: center;
   ${props => props.disabled && 'opacity: 0.6;'}
 `;
-
 const SecondaryButton = styled(TouchableOpacity)`
   background-color: #f1f5f9;
   padding: 18px;
@@ -491,14 +420,12 @@ const SecondaryButton = styled(TouchableOpacity)`
   flex-direction: row;
   justify-content: center;
 `;
-
 const ButtonText = styled(Text)`
   color: white;
   font-weight: 600;
   font-size: 17px;
   letter-spacing: 0.5px;
 `;
-
 const ErrorText = styled(Text)`
   color: #dc2626;
   font-size: 15px;
@@ -510,7 +437,6 @@ const ErrorText = styled(Text)`
   border-left-width: 4px;
   border-left-color: #dc2626;
 `;
-
 const SectionHeader = styled(Text)`
   font-size: 18px;
   font-weight: 600;
@@ -520,7 +446,6 @@ const SectionHeader = styled(Text)`
   border-bottom-width: 1px;
   border-bottom-color: #e2e8f0;
 `;
-
 const IconWrapper = styled(View)`
   margin-right: 10px;
 `;
