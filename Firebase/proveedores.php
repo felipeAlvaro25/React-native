@@ -40,7 +40,11 @@ if ($conn->connect_error) {
 }
 
 // Crear directorio de uploads si no existe
+<<<<<<< HEAD
 $uploadDir = _DIR_ . '/uploads/proveedores/';
+=======
+$uploadDir = __DIR__ . '/uploads/proveedores/';
+>>>>>>> d3704d23ae51e77c2ae090deea59bc5db29e81b4
 if (!is_dir($uploadDir)) {
     if (!mkdir($uploadDir, 0755, true)) {
         ob_end_clean();
@@ -159,8 +163,13 @@ function guardarProveedor($conn) {
             ]);
         } else {
             // Si hay error, eliminar la imagen guardada
+<<<<<<< HEAD
             if ($logoPath && file_exists(_DIR_ . '/' . $logoPath)) {
                 unlink(_DIR_ . '/' . $logoPath);
+=======
+            if ($logoPath && file_exists(__DIR__ . '/' . $logoPath)) {
+                unlink(__DIR__ . '/' . $logoPath);
+>>>>>>> d3704d23ae51e77c2ae090deea59bc5db29e81b4
             }
             
             echo json_encode([
@@ -295,7 +304,11 @@ function guardarImagen($base64Image) {
         
         // Generar nombre único para el archivo
         $nombreArchivo = 'proveedor_' . uniqid() . '_' . date('YmdHis') . $extension;
+<<<<<<< HEAD
         $uploadDir = _DIR_ . '/uploads/proveedores/';
+=======
+        $uploadDir = __DIR__ . '/uploads/proveedores/';
+>>>>>>> d3704d23ae51e77c2ae090deea59bc5db29e81b4
         $rutaCompleta = $uploadDir . $nombreArchivo;
         $rutaRelativa = 'uploads/proveedores/' . $nombreArchivo;
         
@@ -338,7 +351,11 @@ function getBaseUrl() {
 
 // Función para limpiar archivos huérfanos (opcional, llamar manualmente)
 function limpiarImagenesHuerfanas($conn) {
+<<<<<<< HEAD
     $uploadDir = _DIR_ . '/uploads/proveedores/';
+=======
+    $uploadDir = __DIR__ . '/uploads/proveedores/';
+>>>>>>> d3704d23ae51e77c2ae090deea59bc5db29e81b4
     
     if (!is_dir($uploadDir)) {
         return;

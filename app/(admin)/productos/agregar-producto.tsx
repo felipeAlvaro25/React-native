@@ -12,20 +12,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { auth } from '../../../Firebase/firebaseconfig';
 
 // Configuración
-// Configuración
 const ADMIN_EMAILS = [
   'felipealvaro48@gmail.com',
-  'cesarapsricio@gmail.coml',  // Reemplaza con el primer correo adicional
-  'christoferj2002@gmail.com'   // Reemplaza con el segundo correo adicional
+  'cesarapsricio@gmail.com',  // Corregido el email
+  'christoferj2002@gmail.com'
 ];
 const API_URL = 'https://felipe25.alwaysdata.net/api/guardar.php';
-
-
-const TIPOS_PRODUCTO = [
-  'Físico',
-  'Digital',
-  'Servicio'
-];
 
 const TALLAS = [
   'XS', 'S', 'M', 'L', 'XL', 'XXL'
@@ -34,6 +26,10 @@ const TALLAS = [
 const COLORES = [
   'Rojo', 'Azul', 'Verde', 'Negro', 'Blanco', 'Amarillo', 
   'Rosa', 'Morado', 'Gris', 'Naranja'
+];
+
+const SEXOS = [
+  'Caballero', 'Dama'
 ];
 
 export default function AgregarProducto() {
@@ -45,9 +41,10 @@ export default function AgregarProducto() {
     categoria: '',
     color: '',
     talla: '',
-    tipo: 'Físico',
+    tipo: '',
     marca: '',
-    status: 'activo'
+    sexo: '',
+    status: 1 // Por defecto activo (1)
   });
   
   const [selectedImage, setSelectedImage] = useState(null);
@@ -57,7 +54,8 @@ export default function AgregarProducto() {
   const [loadingMarcas, setLoadingMarcas] = useState(false);
   const [categorias, setCategorias] = useState([]);
   const [loadingCategorias, setLoadingCategorias] = useState(false);
-
+  const [tiposProducto, setTiposProducto] = useState([]);
+  const [loadingTipos, setLoadingTipos] = useState(false);
 
   // Verificar permisos de administrador
   if (!ADMIN_EMAILS.includes(auth.currentUser?.email || '')) {
@@ -71,7 +69,8 @@ export default function AgregarProducto() {
     );
   }
 
-    useEffect(() => {
+  // Cargar categorías al iniciar
+  useEffect(() => {
     const cargarCategorias = async () => {
       setLoadingCategorias(true);
       try {
@@ -94,67 +93,80 @@ export default function AgregarProducto() {
     cargarCategorias();
   }, []);
 
-// Cargar proveedores al iniciar
+  // Cargar proveedores por categoría
   useEffect(() => {
-    const cargarProveedores = async () => {
+    const cargarProveedoresPorCategoria = async () => {
+      if (!formData.categoria) {
+        setMarcas([]);
+        return;
+      }
+      
       setLoadingMarcas(true);
       try {
-        const response = await fetch(API_URL, {
-          method: 'GET'
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Error HTTP! estado: ${response.status}`);
-        }
-        
+        const response = await fetch(`${API_URL}?proveedores_por_categoria&id_categoria=${formData.categoria}`);
         const data = await response.json();
-        
+
         if (data.success) {
           setMarcas(data.proveedores);
         } else {
           setError(data.message || 'Error al cargar proveedores');
+          setMarcas([]);
         }
       } catch (error) {
-        console.error('Error cargando proveedores:', error);
-        setError('No se pudo conectar con el servidor');
+        console.error('Error al cargar proveedores:', error);
+        setError('Error al conectar con el servidor');
+        setMarcas([]);
       } finally {
         setLoadingMarcas(false);
       }
     };
-    
-    cargarProveedores();
-  }, []);
 
+    cargarProveedoresPorCategoria();
+  }, [formData.categoria]);
+
+  // Cargar tipos de producto por categoría
   useEffect(() => {
-  const cargarProveedoresPorCategoria = async () => {
-    if (!formData.categoria) return;
-    setLoadingMarcas(true);
-    try {
-      const response = await fetch(`${API_URL}?proveedores_por_categoria&id_categoria=${formData.categoria}`);
-      const data = await response.json();
-
-      if (data.success) {
-        setMarcas(data.proveedores);
-      } else {
-        setError(data.message || 'Error al cargar proveedores');
+    const cargarTiposPorCategoria = async () => {
+      if (!formData.categoria) {
+        setTiposProducto([]);
+        return;
       }
-    } catch (error) {
-      console.error('Error al cargar proveedores:', error);
-      setError('Error al conectar con el servidor');
-    } finally {
-      setLoadingMarcas(false);
-    }
-  };
+      
+      setLoadingTipos(true);
+      try {
+        const response = await fetch(`${API_URL}?tipos_por_categoria&id_categoria=${formData.categoria}`);
+        const data = await response.json();
 
-  cargarProveedoresPorCategoria();
-}, [formData.categoria]);
+        if (data.success) {
+          setTiposProducto(data.tipos_productos);
+        } else {
+          setError(data.message || 'Error al cargar tipos de productos');
+          setTiposProducto([]);
+        }
+      } catch (error) {
+        console.error('Error al cargar tipos de productos:', error);
+        setError('Error al conectar con el servidor');
+        setTiposProducto([]);
+      } finally {
+        setLoadingTipos(false);
+      }
+    };
 
+    cargarTiposPorCategoria();
+  }, [formData.categoria]);
 
   const handleChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
+    setFormData(prev => {
+      const newData = { ...prev, [field]: value };
+      
+      // Resetear campos dependientes cuando cambia la categoría
+      if (field === 'categoria') {
+        newData.marca = '';
+        newData.tipo = '';
+      }
+      
+      return newData;
+    });
     setError('');
   };
 
@@ -242,20 +254,7 @@ export default function AgregarProducto() {
     }
   };
 
-  // Función para convertir imagen a base64
-  const getBase64FromUri = async (uri) => {
-    try {
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      return base64;
-    } catch (error) {
-      console.error('Error converting to base64:', error);
-      return null;
-    }
-  };
-
-const handleAgregarProducto = async () => {
+  const handleAgregarProducto = async () => {
     // Validar campos requeridos
     const requiredFields = ['nombre', 'descripcion', 'precio', 'stock', 'categoria'];
     const missingFields = requiredFields.filter(field => !formData[field]);
@@ -268,18 +267,19 @@ const handleAgregarProducto = async () => {
     setLoading(true);
 
     try {
-      // Preparar datos para enviar - incluyendo TODOS los campos
+      // Preparar datos para enviar
       const productoData = {
         nombre: formData.nombre,
-        descripcion: formData.descripcion, // Mantenido como 'descripcion'
+        descripcion: formData.descripcion,
         precio: Number(formData.precio),
         stock: Number(formData.stock),
         categoria: formData.categoria,
         color: formData.color || null,
         talla: formData.talla || null,
-        tipo: formData.tipo || 'Físico',
-        status: formData.status || 'activo',
-        comprados: 0, // Valor por defecto
+        tipo: formData.tipo || null,
+        sexo: formData.sexo || null,
+        status: 1, // Siempre activo por defecto
+        comprados: 0,
         marca: formData.marca || null
       };
 
@@ -296,7 +296,7 @@ const handleAgregarProducto = async () => {
         }
 
         if (imageBase64) {
-          productoData.imagenURL = imageBase64; // Mantenido como 'imagenURL'
+          productoData.imagenURL = imageBase64;
           productoData.imagen_tipo = selectedImage.type || 'image/jpeg';
         }
       }
@@ -327,9 +327,10 @@ const handleAgregarProducto = async () => {
         categoria: '',
         color: '',
         talla: '',
-        tipo: 'Físico',
+        tipo: '',
         marca: '',
-        status: 'activo'
+        sexo: '',
+        status: 1
       });
       setSelectedImage(null);
 
@@ -390,36 +391,49 @@ const handleAgregarProducto = async () => {
           
           <Label>CATEGORÍA*</Label>
           <PickerContainer>
-            <Picker
-              selectedValue={formData.categoria}
-              onValueChange={(itemValue) => handleChange('categoria', itemValue)}>
-              <Picker.Item label="Seleccione una categoría" value="" />
-              {categorias.map((cat) => (
-                <Picker.Item key={cat.id} label={cat.nombre} value={cat.id.toString()} />
-              ))}
-            </Picker>
+            {loadingCategorias ? (
+              <ActivityIndicator size="small" color="#3b82f6" />
+            ) : (
+              <Picker
+                selectedValue={formData.categoria}
+                onValueChange={(itemValue) => handleChange('categoria', itemValue)}>
+                <Picker.Item label="Seleccione una categoría" value="" />
+                {categorias.map((cat) => (
+                  <Picker.Item key={cat.id} label={cat.nombre} value={cat.id.toString()} />
+                ))}
+              </Picker>
+            )}
           </PickerContainer>
-
 
           <Label>TIPO DE PRODUCTO</Label>
           <PickerContainer>
-            <Picker
-              selectedValue={formData.tipo}
-              onValueChange={(itemValue) => handleChange('tipo', itemValue)}>
-              {TIPOS_PRODUCTO.map((tipo) => (
-                <Picker.Item key={tipo} label={tipo} value={tipo} />
-              ))}
-            </Picker>
+            {loadingTipos ? (
+              <ActivityIndicator size="small" color="#3b82f6" />
+            ) : (
+              <Picker
+                selectedValue={formData.tipo}
+                onValueChange={(itemValue) => handleChange('tipo', itemValue)}
+                enabled={tiposProducto.length > 0}>
+                <Picker.Item label="Seleccione un tipo" value="" />
+                {tiposProducto.map((tipo) => (
+                  <Picker.Item key={tipo.id} label={tipo.tipo} value={tipo.id.toString()} />
+                ))}
+              </Picker>
+            )}
           </PickerContainer>
+          {formData.categoria && tiposProducto.length === 0 && !loadingTipos && (
+            <InfoText>No hay tipos de producto disponibles para esta categoría</InfoText>
+          )}
 
           <Label>MARCA/PROVEEDOR</Label>
-          {loadingMarcas ? (
-            <ActivityIndicator size="small" color="#3b82f6" />
-          ) : (
-            <PickerContainer>
+          <PickerContainer>
+            {loadingMarcas ? (
+              <ActivityIndicator size="small" color="#3b82f6" />
+            ) : (
               <Picker
                 selectedValue={formData.marca}
-                onValueChange={(itemValue) => handleChange('marca', itemValue)}>
+                onValueChange={(itemValue) => handleChange('marca', itemValue)}
+                enabled={marcas.length > 0}>
                 <Picker.Item label="Seleccione un proveedor" value="" />
                 {marcas.map((proveedor) => (
                   <Picker.Item 
@@ -429,7 +443,10 @@ const handleAgregarProducto = async () => {
                   />
                 ))}
               </Picker>
-            </PickerContainer>
+            )}
+          </PickerContainer>
+          {formData.categoria && marcas.length === 0 && !loadingMarcas && (
+            <InfoText>No hay proveedores disponibles para esta categoría</InfoText>
           )}
         </Card>
 
@@ -437,6 +454,18 @@ const handleAgregarProducto = async () => {
         <Card>
           <SectionHeader>Atributos</SectionHeader>
           
+          <Label>SEXO</Label>
+          <PickerContainer>
+            <Picker
+              selectedValue={formData.sexo}
+              onValueChange={(itemValue) => handleChange('sexo', itemValue)}>
+              <Picker.Item label="Seleccione un sexo" value="" />
+              {SEXOS.map((sexo) => (
+                <Picker.Item key={sexo} label={sexo} value={sexo} />
+              ))}
+            </Picker>
+          </PickerContainer>
+
           <Label>COLOR</Label>
           <PickerContainer>
             <Picker
@@ -458,17 +487,6 @@ const handleAgregarProducto = async () => {
               {TALLAS.map((talla) => (
                 <Picker.Item key={talla} label={talla} value={talla} />
               ))}
-            </Picker>
-          </PickerContainer>
-
-          <Label>ESTADO</Label>
-          <PickerContainer>
-            <Picker
-              selectedValue={formData.status}
-              onValueChange={(itemValue) => handleChange('status', itemValue)}>
-              <Picker.Item label="Activo" value="activo" />
-              <Picker.Item label="Inactivo" value="inactivo" />
-              <Picker.Item label="Agotado" value="agotado" />
             </Picker>
           </PickerContainer>
         </Card>
@@ -583,6 +601,17 @@ const PickerContainer = styled(View)`
   border: 1px solid #e2e8f0;
   margin-bottom: 18px;
   overflow: hidden;
+  min-height: 50px;
+  justify-content: center;
+`;
+
+const InfoText = styled(Text)`
+  color: #6b7280;
+  font-size: 12px;
+  text-align: center;
+  margin-top: -10px;
+  margin-bottom: 10px;
+  font-style: italic;
 `;
 
 const ImageSection = styled(View)`

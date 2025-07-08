@@ -32,7 +32,7 @@ try {
 
         // Obtener categorías
         if (isset($_GET['categorias'])) {
-            $sql = "SELECT id, nombre FROM categoria ORDER BY nombre ASC";
+            $sql = "SELECT id, nombre FROM categorias ORDER BY nombre ASC";
             $result = $conn->query($sql);
 
             if (!$result) {
@@ -75,6 +75,34 @@ try {
             $response = [
                 'success' => true,
                 'proveedores' => $proveedores
+            ];
+
+            echo json_encode($response, JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+
+        // Obtener tipos de productos por categoría
+        if (isset($_GET['tipos_por_categoria']) && isset($_GET['id_categoria'])) {
+            $id_categoria = intval($_GET['id_categoria']);
+
+            $sql = "SELECT id, tipo FROM tipo_producto WHERE categoria = ? ORDER BY tipo ASC";
+            $stmt = $conn->prepare($sql);
+            $stmt->bind_param("i", $id_categoria);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            if (!$result) {
+                throw new Exception('Error en consulta de tipos de productos por categoría: ' . $conn->error);
+            }
+
+            $tipos_productos = [];
+            while($row = $result->fetch_assoc()) {
+                $tipos_productos[] = $row;
+            }
+
+            $response = [
+                'success' => true,
+                'tipos_productos' => $tipos_productos
             ];
 
             echo json_encode($response, JSON_UNESCAPED_UNICODE);
@@ -140,7 +168,8 @@ try {
         $color = isset($data['color']) ? trim($data['color']) : null;
         $talla = isset($data['talla']) ? trim($data['talla']) : null;
         $tipo = isset($data['tipo']) ? trim($data['tipo']) : null;
-        $status = isset($data['status']) ? intval($data['status']) : 1;
+        $sexo = isset($data['sexo']) ? trim($data['sexo']) : null;
+        $status = 1; // Por defecto activo (1)
         $comprados = isset($data['comprados']) ? intval($data['comprados']) : 0;
 
         // Validar tipos de datos
@@ -160,16 +189,16 @@ try {
             $imagenURL = procesarImagen($data['imagenURL'], $data['imagen_tipo'] ?? 'image/jpeg');
         }
 
-        // Preparar consulta SQL con todos los campos
-        $sql = "INSERT INTO productos (nombre, descripcion, precio, stock, categoria, imagenURL, color, talla, tipo, status, comprados, marca) 
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
+        // Preparar consulta SQL con todos los campos incluyendo sexo
+        $sql = "INSERT INTO productos (nombre, descripcion, precio, stock, categoria, imagenURL, color, talla, tipo, sexo, status, comprados, marca) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         
         $stmt = $conn->prepare($sql);
         if (!$stmt) {
             throw new Exception('Error preparando consulta: ' . $conn->error);
         }
         
-        $stmt->bind_param("ssdssssssiis", 
+        $stmt->bind_param("ssdsisssssiis", 
             $nombre, 
             $descripcion, 
             $precio, 
@@ -179,6 +208,7 @@ try {
             $color,
             $talla,
             $tipo,
+            $sexo,
             $status,
             $comprados,
             $marca
@@ -202,6 +232,7 @@ try {
                     'color' => $color,
                     'talla' => $talla,
                     'tipo' => $tipo,
+                    'sexo' => $sexo,
                     'status' => $status,
                     'comprados' => $comprados,
                     'marca' => $marca
