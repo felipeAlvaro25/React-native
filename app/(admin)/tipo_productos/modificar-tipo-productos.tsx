@@ -2,7 +2,7 @@ import { Picker } from '@react-native-picker/picker';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Button, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-const API_URL = 'https://felipe25.alwaysdata.net/api/tipo-producto.php';
+const API_URL = 'https://felipe25.alwaysdata.net/api/modificar-tipo.php';
 
 export default function App() {
   const [categories, setCategories] = useState([]);

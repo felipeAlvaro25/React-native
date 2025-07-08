@@ -332,7 +332,7 @@ const validateAndCreateTables = async () => {
             {/* Solo visible para los admins */}
             {ADMIN_EMAILS.includes(user.email) && (
               <>
-                <Link href="/(proyectos)/agregar-producto" asChild>
+                <Link href="/(admin)/productos/agregar-producto" asChild>
                   <AuthButton style={{ backgroundColor: '#4CAF50' }}>
                     <ButtonText>Agregar Productos</ButtonText>
                   </AuthButton>

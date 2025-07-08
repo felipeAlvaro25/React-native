@@ -25,11 +25,6 @@ export default function AdminDashboardCards() {
                 <ButtonText>Modificar Producto</ButtonText>
               </AuthButton>
             </Link>
-            <Link href="/(admin)/productos/eliminar-producto" asChild>
-              <AuthButton>
-                <ButtonText>Eliminar Producto</ButtonText>
-              </AuthButton>
-            </Link>
           </ButtonWrapper>
         </ManagementCard>
 
@@ -45,7 +40,7 @@ export default function AdminDashboardCards() {
                 <ButtonText>Agregar Proveedor</ButtonText>
               </AuthButton>
             </Link>
-            <Link href="/(admin)/proveedores/modificar-proveedores" asChild>
+            <Link href="/(admin)/proveedores/modificar" asChild>
               <AuthButton>
                 <ButtonText>Modificar Proveedor</ButtonText>
               </AuthButton>
@@ -65,7 +60,7 @@ export default function AdminDashboardCards() {
                 <ButtonText>Agregar Tipo de Producto</ButtonText>
               </AuthButton>
             </Link>
-            <Link href="/(admin)/tipo-productos/modificar-tipo-productos" asChild>
+            <Link href="/(admin)/tipo_productos/modificar-tipo-productos" asChild>
               <AuthButton>
                 <ButtonText>Modificar Tipo de Producto</ButtonText>
               </AuthButton>

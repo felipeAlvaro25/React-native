@@ -46,6 +46,12 @@ ob_end_clean();
 $accion = $_POST['accion'] ?? $_GET['accion'] ?? '';
 
 switch ($accion) {
+    case 'obtener_categorias':
+        obtenerCategorias($conn);
+        break;
+    case 'obtener_proveedores_por_categoria':
+        obtenerProveedoresPorCategoria($conn);
+        break;
     case 'obtener_proveedor':
         obtenerProveedor($conn);
         break;
@@ -55,21 +61,114 @@ switch ($accion) {
     default:
         echo json_encode([
             'success' => false,
-            'message' => 'Acción no especificada'
+            'message' => 'Acción no especificada o no válida'
         ]);
         break;
 }
 
 $conn->close();
 
+// Función para obtener todas las categorías
+function obtenerCategorias($conn) {
+    try {
+        $sql = "SELECT id, nombre FROM categorias ORDER BY nombre ASC";
+        $result = $conn->query($sql);
+
+        if (!$result) {
+            throw new Exception('Error al consultar categorías: ' . $conn->error);
+        }
+
+        $categorias = [];
+        while ($row = $result->fetch_assoc()) {
+            $categorias[] = $row;
+        }
+
+        echo json_encode([
+            'success' => true,
+            'categorias' => $categorias
+        ]);
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'message' => $e->getMessage()
+        ]);
+    }
+}
+
+// Función para obtener proveedores por categoría
+function obtenerProveedoresPorCategoria($conn) {
+    try {
+        if (!isset($_GET['categoria_id']) || empty($_GET['categoria_id'])) {
+            throw new Exception('ID de categoría no especificado');
+        }
+
+        $categoria_id = $conn->real_escape_string($_GET['categoria_id']);
+        
+        // Validar que el ID sea un número
+        if (!is_numeric($categoria_id)) {
+            throw new Exception('ID de categoría no válido');
+        }
+
+        // Verificar que la categoría existe
+        $checkCategoria = "SELECT id, nombre FROM categorias WHERE id = '$categoria_id'";
+        $resultCategoria = $conn->query($checkCategoria);
+        
+        if (!$resultCategoria || $resultCategoria->num_rows === 0) {
+            throw new Exception('La categoría no existe');
+        }
+
+        // Obtener proveedores de la categoría
+        $sql = "SELECT p.id, p.nombre, p.ruc, p.logo, p.categoria, c.nombre as categoria_nombre 
+                FROM proveedores p 
+                LEFT JOIN categorias c ON p.categoria = c.id 
+                WHERE p.categoria = '$categoria_id' 
+                ORDER BY p.nombre ASC";
+        
+        $result = $conn->query($sql);
+
+        if (!$result) {
+            throw new Exception('Error al consultar proveedores: ' . $conn->error);
+        }
+
+        $proveedores = [];
+        while ($row = $result->fetch_assoc()) {
+            // Convertir ruta de archivo a URL completa si es necesario
+            if (!empty($row['logo'])) {
+                $baseUrl = getBaseUrl();
+                // Verificar si ya es una URL completa
+                if (strpos($row['logo'], 'http') !== 0) {
+                    $row['logo'] = $baseUrl . '/' . $row['logo'];
+                }
+            }
+            $proveedores[] = $row;
+        }
+
+        echo json_encode([
+            'success' => true,
+            'proveedores' => $proveedores,
+            'categoria' => $resultCategoria->fetch_assoc()
+        ]);
+    } catch (Exception $e) {
+        echo json_encode([
+            'success' => false,
+            'message' => $e->getMessage()
+        ]);
+    }
+}
+
 // Función para obtener datos de un proveedor específico
 function obtenerProveedor($conn) {
     try {
-        if (!isset($_GET['id'])) {
+        if (!isset($_GET['id']) || empty($_GET['id'])) {
             throw new Exception('ID de proveedor no especificado');
         }
 
         $id = $conn->real_escape_string($_GET['id']);
+        
+        // Validar que el ID sea un número
+        if (!is_numeric($id)) {
+            throw new Exception('ID de proveedor no válido');
+        }
         
         $sql = "SELECT p.id, p.nombre, p.ruc, p.logo, p.categoria, c.nombre as categoria_nombre 
                 FROM proveedores p 
@@ -78,7 +177,11 @@ function obtenerProveedor($conn) {
         
         $result = $conn->query($sql);
 
-        if (!$result || $result->num_rows === 0) {
+        if (!$result) {
+            throw new Exception('Error al consultar proveedor: ' . $conn->error);
+        }
+
+        if ($result->num_rows === 0) {
             throw new Exception('Proveedor no encontrado');
         }
 
@@ -87,7 +190,10 @@ function obtenerProveedor($conn) {
         // Convertir ruta de archivo a URL completa si es necesario
         if (!empty($proveedor['logo'])) {
             $baseUrl = getBaseUrl();
-            $proveedor['logo'] = $baseUrl . '/' . $proveedor['logo'];
+            // Verificar si ya es una URL completa
+            if (strpos($proveedor['logo'], 'http') !== 0) {
+                $proveedor['logo'] = $baseUrl . '/' . $proveedor['logo'];
+            }
         }
 
         echo json_encode([
@@ -103,6 +209,7 @@ function obtenerProveedor($conn) {
 }
 
 // Función para actualizar un proveedor
+// Función para actualizar un proveedor
 function actualizarProveedor($conn) {
     try {
         // Validar campos requeridos
@@ -115,26 +222,68 @@ function actualizarProveedor($conn) {
         $ruc = $conn->real_escape_string($_POST['ruc']);
         $categoria = $conn->real_escape_string($_POST['categoria']);
         $fecha_actual = date('Y-m-d H:i:s');
+        $mantener_imagen = isset($_POST['mantener_imagen']) && $_POST['mantener_imagen'] == '1';
+
+        // Validar que el ID sea un número
+        if (!is_numeric($id)) {
+            throw new Exception('ID de proveedor no válido');
+        }
 
         // Validar RUC (mínimo 4 dígitos)
         if (strlen($ruc) < 4 || !ctype_digit($ruc)) {
             throw new Exception('El RUC debe tener al menos 4 dígitos numéricos');
         }
 
+        // Validar que la categoría existe
+        $checkCategoria = "SELECT id FROM categorias WHERE id = '$categoria'";
+        $resultCategoria = $conn->query($checkCategoria);
+        
+        if (!$resultCategoria || $resultCategoria->num_rows === 0) {
+            throw new Exception('La categoría seleccionada no existe');
+        }
+
         // Verificar si el RUC ya existe (excluyendo el actual)
         $checkRuc = "SELECT id FROM proveedores WHERE ruc = '$ruc' AND id != '$id'";
         $result = $conn->query($checkRuc);
         
-        if ($result && $result->num_rows > 0) {
+        if (!$result) {
+            throw new Exception('Error al verificar RUC: ' . $conn->error);
+        }
+        
+        if ($result->num_rows > 0) {
             throw new Exception('Ya existe otro proveedor con este RUC');
         }
 
-        // Procesar imagen si se envió una nueva
-        $logoPath = null;
-        if (!empty($_POST['logo'])) {
-            $logoPath = guardarImagen($_POST['logo']);
-            if (!$logoPath) {
-                throw new Exception('Error al procesar la imagen');
+        // Verificar que el proveedor existe
+        $checkProveedor = "SELECT id, logo FROM proveedores WHERE id = '$id'";
+        $resultProveedor = $conn->query($checkProveedor);
+        
+        if (!$resultProveedor || $resultProveedor->num_rows === 0) {
+            throw new Exception('El proveedor no existe');
+        }
+
+        $proveedorActual = $resultProveedor->fetch_assoc();
+        $logoPath = $proveedorActual['logo']; // Mantener la imagen actual por defecto
+
+        // Procesar imagen si se envió una nueva (y no se marcó mantener imagen)
+        if (!$mantener_imagen) {
+            if (!empty($_POST['logo'])) {
+                // Subir nueva imagen
+                $logoPath = guardarImagen($_POST['logo']);
+                if (!$logoPath) {
+                    throw new Exception('Error al procesar la imagen');
+                }
+                
+                // Eliminar la imagen anterior si existe
+                if (!empty($proveedorActual['logo'])) {
+                    eliminarImagenAnterior($conn, $id);
+                }
+            } else {
+                // Si no se envía imagen y no se marca mantener, eliminar la existente
+                $logoPath = null;
+                if (!empty($proveedorActual['logo'])) {
+                    eliminarImagenAnterior($conn, $id);
+                }
             }
         }
 
@@ -145,12 +294,11 @@ function actualizarProveedor($conn) {
                 categoria = '$categoria',
                 updated_at = '$fecha_actual'";
         
-        // Agregar logo si se actualizó
-        if ($logoPath) {
+        // Manejar el campo de imagen
+        if ($logoPath !== null) {
             $sql .= ", logo = '$logoPath'";
-            
-            // Eliminar la imagen anterior si existe
-            eliminarImagenAnterior($conn, $id);
+        } else {
+            $sql .= ", logo = NULL";
         }
         
         $sql .= " WHERE id = '$id'";
@@ -158,11 +306,12 @@ function actualizarProveedor($conn) {
         if ($conn->query($sql)) {
             echo json_encode([
                 'success' => true,
-                'message' => 'Proveedor actualizado correctamente'
+                'message' => 'Proveedor actualizado correctamente',
+                'logo' => $logoPath ? getBaseUrl() . '/' . $logoPath : null
             ]);
         } else {
             // Si hay error, eliminar la imagen nueva si se subió
-            if ($logoPath && file_exists(__DIR__ . '/' . $logoPath)) {
+            if (isset($logoPath) && $logoPath !== $proveedorActual['logo'] && file_exists(__DIR__ . '/' . $logoPath)) {
                 unlink(__DIR__ . '/' . $logoPath);
             }
             
@@ -176,15 +325,30 @@ function actualizarProveedor($conn) {
     }
 }
 
-// Función para eliminar la imagen anterior del proveedor
+// Función para eliminar la imagen anterior del proveedor (mejorada)
 function eliminarImagenAnterior($conn, $proveedorId) {
-    $queryOldImage = "SELECT logo FROM proveedores WHERE id = '$proveedorId'";
-    $resultOldImage = $conn->query($queryOldImage);
-    
-    if ($resultOldImage && $row = $resultOldImage->fetch_assoc()) {
-        if (!empty($row['logo']) && file_exists(__DIR__ . '/' . $row['logo'])) {
-            unlink(__DIR__ . '/' . $row['logo']);
+    try {
+        $queryOldImage = "SELECT logo FROM proveedores WHERE id = '$proveedorId'";
+        $resultOldImage = $conn->query($queryOldImage);
+        
+        if ($resultOldImage && $row = $resultOldImage->fetch_assoc()) {
+            if (!empty($row['logo'])) {
+                $fullPath = __DIR__ . '/' . $row['logo'];
+                if (file_exists($fullPath) && is_file($fullPath)) {
+                    // Verificar que el archivo no está siendo usado
+                    if (is_writable($fullPath)) {
+                        unlink($fullPath);
+                        // Eliminar directorios vacíos si es necesario
+                        $dir = dirname($fullPath);
+                        if (count(scandir($dir)) == 2) { // Solo . y ..
+                            rmdir($dir);
+                        }
+                    }
+                }
+            }
         }
+    } catch (Exception $e) {
+        error_log('Error al eliminar imagen anterior: ' . $e->getMessage());
     }
 }
 
@@ -217,6 +381,12 @@ function guardarImagen($base64Image) {
             return false;
         }
         
+        // Validar dimensiones de la imagen
+        if ($imageInfo[0] > 2048 || $imageInfo[1] > 2048) {
+            error_log('Error: La imagen es demasiado grande');
+            return false;
+        }
+        
         // Determinar extensión basada en el tipo MIME
         $extension = '';
         switch ($imageInfo['mime']) {
@@ -240,7 +410,10 @@ function guardarImagen($base64Image) {
         
         // Crear directorio si no existe
         if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
+            if (!mkdir($uploadDir, 0755, true)) {
+                error_log('Error: No se pudo crear el directorio: ' . $uploadDir);
+                return false;
+            }
         }
         
         $rutaCompleta = $uploadDir . $nombreArchivo;
