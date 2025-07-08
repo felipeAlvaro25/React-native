@@ -8,7 +8,7 @@ import { useEffect, useState, useRef } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 
-type AppRoute = "/(admin)" | "/(zapatillas)" | "/(ropa)" | "/(reloj)";
+type AppRoute = "/(admin)" | "/(zapatillas)" | "/(ropa)" | "/(usuario)" | "/(reloj)";
 
 type Ruta = {
     name: string;

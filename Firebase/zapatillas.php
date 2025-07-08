@@ -13,7 +13,7 @@ try {
     $sql = "SELECT id, nombre, descripcion, precio, stock, categoria, 
                    imagenURL, color, talla, tipo, status, comprados, marca 
             FROM productos 
-            WHERE status = 'activo' AND categoria='zapatillas'";
+            WHERE status = 'activo' AND categoria='1' AND sexo='Caballero'";
 
     $result = $conn->query($sql);
 

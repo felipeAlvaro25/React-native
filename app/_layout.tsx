@@ -6,6 +6,7 @@ import { Stack } from "expo-router";
         <Stack.Screen name="(ropa)"/>
         <Stack.Screen name="(admin)"/>
         <Stack.Screen name="(reloj)"/>
+        <Stack.Screen name="(usuario)"/>
       </Stack>
     )
   }
