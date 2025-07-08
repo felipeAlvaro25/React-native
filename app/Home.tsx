@@ -1,12 +1,12 @@
-import { Link, router } from "expo-router";
 import { AntDesign, Entypo, MaterialIcons } from "@expo/vector-icons";
-import { styled } from "styled-components/native";
-import { FlatList, Alert, Text, TouchableOpacity, View, Image, ActivityIndicator, Animated, Dimensions } from "react-native";
-import { auth } from '../Firebase/firebaseconfig';
-import { signOut } from 'firebase/auth';
-import { useEffect, useState, useRef } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { Link, router } from "expo-router";
+import { signOut } from 'firebase/auth';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, Image, Text, TouchableOpacity, View } from "react-native";
+import { styled } from "styled-components/native";
+import { auth } from '../Firebase/firebaseconfig';
 
 type AppRoute = "/(admin)" | "/(zapatillas)" | "/(ropa)" | "/(usuario)" | "/(reloj)";
 
