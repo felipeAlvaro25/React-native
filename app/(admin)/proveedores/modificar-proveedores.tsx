@@ -16,7 +16,7 @@ const ADMIN_EMAILS = [
   'cesarapsricio@gmail.com',
   'christoferj2002@gmail.com'
 ];
-const API_URL = 'https://felipe25.alwaysdata.net/api/proveedores.php';
+const API_URL = 'https://felipe25.alwaysdata.net/api/modificar-proveedores.php';
 
 export default function EditarProveedor() {
   const { id } = useLocalSearchParams();
