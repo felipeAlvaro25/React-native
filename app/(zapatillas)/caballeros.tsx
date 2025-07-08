@@ -2,7 +2,7 @@ import { Link, router } from "expo-router";
 import { AntDesign, Entypo, MaterialIcons } from "@expo/vector-icons";
 import { styled } from "styled-components/native";
 import { FlatList, Alert, Text, TouchableOpacity, View, Image, ActivityIndicator, Animated, Dimensions } from "react-native";
-import { auth } from '../Firebase/firebaseconfig';
+import { auth } from '../../Firebase/firebaseconfig';
 import { signOut } from 'firebase/auth';
 import { useEffect, useState, useRef } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -64,7 +64,7 @@ function Inicio() {
     const cargarProductos = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_URL}productos.php`);
+            const response = await fetch(`${API_URL}zapatillas.php`);
             if (!response.ok) throw new Error(`Error HTTP! estado: ${response.status}`);
             
             const data = await response.json();
@@ -298,6 +298,7 @@ function Inicio() {
             Alert.alert('Error', error.message);
         }
     };
+
         return (
         <>
             <GradientBackground />
@@ -324,7 +325,7 @@ function Inicio() {
                         {/* Products Section */}
                         <SectionContainer>
                             <SectionHeader>
-                                <Titulo>Productos Disponibles</Titulo>
+                                <Titulo>Zapatillas Disponibles</Titulo>
                                 <ViewModeContainer>
                                     <ViewModeButton 
                                         active={viewMode === 'single'}

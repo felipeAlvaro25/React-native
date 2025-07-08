@@ -11,7 +11,11 @@ import { initializeDatabase } from '../Firebase/Firebase';
 import { signInWithEmailAndPassword, signOut, onAuthStateChanged, createUserWithEmailAndPassword } from 'firebase/auth';
 
 // Configuración
-const ADMIN_EMAIL = 'felipealvaro48@gmail.com';
+const ADMIN_EMAILS = [
+  'felipealvaro48@gmail.com',
+  'cesarapsricio@gmail.coml',  // Reemplaza con el primer correo adicional
+  'christoferj2002@gmail.com'   // Reemplaza con el segundo correo adicional
+];
 const API_URL = 'https://felipe25.alwaysdata.net/api/';
 
 interface FormData {
@@ -45,18 +49,25 @@ export default function AuthScreen() {
     direccion: ''
   });
   
-  const [loading, setLoading] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(true);
   const [user, setUser] = useState<any>(null);
   const [error, setError] = useState<string>('');
   const [isSignUp, setIsSignUp] = useState<boolean>(false);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [databaseStatus, setDatabaseStatus] = useState<string>('Verificando base de datos...');
 
   useEffect(() => {
     let unsubscribe: () => void;
     
-    const initFirebase = async () => {
+    const initApp = async () => {
       try {
+        // 1. Verificar y crear tablas si es necesario
+        await validateAndCreateTables();
+        
+        // 2. Inicializar Firebase
         await initializeDatabase();
+        
+        // 3. Configurar listener de autenticación
         unsubscribe = onAuthStateChanged(auth, async (user) => {
           setUser(user);
           if (user) {
@@ -64,19 +75,63 @@ export default function AuthScreen() {
             await fetchUserProfile(user.uid);
             router.replace('/home');
           }
+          setLoading(false);
         });
+        
       } catch (err) {
-        console.error("Firebase init error:", err);
+        console.error("App init error:", err);
         setError("Error al inicializar la aplicación");
+        setLoading(false);
       }
     };
 
-    initFirebase();
+    initApp();
 
     return () => {
       if (unsubscribe) unsubscribe();
     };
   }, []);
+
+const validateAndCreateTables = async () => {
+  try {
+    setDatabaseStatus('Verificando estructura de la base de datos...');
+    
+    // Llamar al endpoint que valida y crea tablas
+    const response = await fetch(`${API_URL}creacion.php`);
+    
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+    
+    const data = await response.json();
+    
+    if (data.success) {
+      setDatabaseStatus('Base de datos lista');
+      console.log('Database validation:', data.message);
+      
+      // Mostrar información de debug si es necesario
+      if (data.data.faltantes && data.data.faltantes.length > 0) {
+        console.log('Tablas creadas:', data.data.faltantes);
+      }
+    } else {
+      throw new Error(data.message || 'Error al validar la base de datos');
+    }
+  } catch (error) {
+    console.error('Error validating database:', error);
+    setError('Error al validar la base de datos');
+    setDatabaseStatus('Error en base de datos');
+    
+    // Mostrar alerta al usuario
+    Alert.alert(
+      'Error de Base de Datos',
+      'No se pudo validar la estructura de la base de datos. La aplicación puede no funcionar correctamente.',
+      [
+        { text: 'Continuar', onPress: () => {} },
+        { text: 'Reintentar', onPress: () => validateAndCreateTables() }
+      ]
+    );
+  }
+};
 
   // Función para obtener el perfil del usuario desde alwaysData
   const fetchUserProfile = async (firebaseUid: string) => {
@@ -258,7 +313,7 @@ export default function AuthScreen() {
     return (
       <LoadingContainer>
         <ActivityIndicator size="large" color="#6a1b9a" />
-        <LoadingText>Cargando...</LoadingText>
+        <LoadingText>{databaseStatus}</LoadingText>
       </LoadingContainer>
     );
   }
@@ -274,8 +329,8 @@ export default function AuthScreen() {
               <ButtonText>Cerrar sesión</ButtonText>
             </AuthButton>
             
-            {/* Solo visible para el admin */}
-            {user.email === ADMIN_EMAIL && (
+            {/* Solo visible para los admins */}
+            {ADMIN_EMAILS.includes(user.email) && (
               <>
                 <Link href="/(proyectos)/agregar-producto" asChild>
                   <AuthButton style={{ backgroundColor: '#4CAF50' }}>
@@ -283,7 +338,7 @@ export default function AuthScreen() {
                   </AuthButton>
                 </Link>
                 
-                <Link href="/Home" asChild>
+                <Link href="/home" asChild>
                   <AuthButton style={{ backgroundColor: '#2196F3' }}>
                     <ButtonText>Ir al Panel Admin</ButtonText>
                   </AuthButton>
@@ -291,7 +346,7 @@ export default function AuthScreen() {
               </>
             )}
             
-            <Link href="/Home" asChild>
+            <Link href="/home" asChild>
               <NavLink>Ir al inicio</NavLink>
             </Link>
           </AuthenticatedView>

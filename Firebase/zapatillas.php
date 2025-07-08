@@ -10,7 +10,11 @@ try {
         throw new Exception('Error de conexión a la base de datos');
     }
 
-    $sql = "SELECT id, nombre, descripcion, precio, stock, imagenURL FROM productos WHERE status = 'activo'";
+    $sql = "SELECT id, nombre, descripcion, precio, stock, categoria, 
+                   imagenURL, color, talla, tipo, status, comprados, marca 
+            FROM productos 
+            WHERE status = 'activo' AND categoria='zapatillas'";
+
     $result = $conn->query($sql);
 
     if (!$result) {
@@ -19,6 +23,10 @@ try {
 
     $productos = [];
     while($row = $result->fetch_assoc()) {
+        // Construir la URL completa de la imagen
+        if (!empty($row['imagenURL'])) {
+            $row['imagenURL'] = 'https://felipe25.alwaysdata.net/api/uploads/productos/' . basename($row['imagenURL']);
+        }
         $productos[] = $row;
     }
 
