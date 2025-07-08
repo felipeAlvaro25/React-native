@@ -41,13 +41,7 @@ try {
     $proveedor = $result->fetch_assoc();
     $logoPath = $proveedor['logo'];
 
-    // Validar nombre
-    if (isset($input['nombre']) && strlen(trim($input['nombre'])) < 3) {
-        http_response_code(400);
-        throw new Exception('El nombre debe tener al menos 3 caracteres');
-    }
-
-    // Validar RUC
+    // Validación de RUC
     if (isset($input['ruc'])) {
         if (strlen($input['ruc']) < 4 || !ctype_digit($input['ruc'])) {
             http_response_code(400);
@@ -63,22 +57,22 @@ try {
         }
     }
 
-    // Si se proporciona imagen base64 válida
+    // Procesar nuevo logo
     if (!empty($input['logo']) && strpos($input['logo'], 'data:image/') === 0) {
         $nuevoLogo = guardarImagen($input['logo']);
         if (!$nuevoLogo) {
             http_response_code(500);
-            throw new Exception('Error al guardar la imagen del logo');
+            throw new Exception('Error al guardar imagen');
         }
 
-        // Borrar imagen anterior si es diferente
-        if (!empty($proveedor['logo']) && $proveedor['logo'] != $nuevoLogo && file_exists(__DIR__ . '/' . $proveedor['logo'])) {
-            unlink(__DIR__ . '/' . $proveedor['logo']);
+        if (!empty($proveedor['logo']) && $proveedor['logo'] != $nuevoLogo && file_exists(__DIR__.'/'.$proveedor['logo'])) {
+            unlink(__DIR__.'/'.$proveedor['logo']);
         }
+
         $logoPath = $nuevoLogo;
     }
 
-    // Preparar UPDATE dinámico
+    // Construir actualización dinámica
     $fields = ['nombre', 'ruc', 'categoria'];
     $updates = [];
     $types = '';
@@ -105,7 +99,7 @@ try {
     $values[] = $input['id'];
     $types .= 'i';
 
-    $sql = "UPDATE proveedores SET " . implode(", ", $updates) . " WHERE id = ?";
+    $sql = "UPDATE proveedores SET ".implode(", ", $updates)." WHERE id = ?";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param($types, ...$values);
 
@@ -116,11 +110,8 @@ try {
             'data' => ['id' => $input['id'], 'logo' => $logoPath]
         ]);
     } else {
-        if (isset($nuevoLogo) && file_exists(__DIR__ . '/' . $nuevoLogo)) {
-            unlink(__DIR__ . '/' . $nuevoLogo);
-        }
         http_response_code(500);
-        throw new Exception('Error al actualizar el proveedor: ' . $conn->error);
+        throw new Exception('Error al actualizar proveedor: ' . $conn->error);
     }
 
 } catch (Exception $e) {
@@ -147,11 +138,11 @@ function guardarImagen($base64Image) {
     $extension = $allowed[$mime];
     $filename = 'uploads/proveedores/' . uniqid() . '.' . $extension;
 
-    if (!file_exists(__DIR__ . '/uploads/proveedores')) {
-        mkdir(__DIR__ . '/uploads/proveedores', 0755, true);
+    if (!file_exists(__DIR__.'/uploads/proveedores')) {
+        mkdir(__DIR__.'/uploads/proveedores', 0755, true);
     }
 
-    if (file_put_contents(__DIR__ . '/' . $filename, $imageData)) {
+    if (file_put_contents(__DIR__.'/'.$filename, $imageData)) {
         return $filename;
     }
 
