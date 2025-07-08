@@ -61,7 +61,7 @@ export default function AdminDashboardCards() {
             <CardTitle>Tipo de Producto</CardTitle>
           </CardHeader>
           <ButtonWrapper>
-            <Link href="/(admin)/tipo-productos/agregar-tipo-productos" asChild>
+            <Link href="/(admin)/tipo_productos/agregar-tipo-productos" asChild>
               <AuthButton>
                 <ButtonText>Agregar Tipo de Producto</ButtonText>
               </AuthButton>

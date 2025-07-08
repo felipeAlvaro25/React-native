@@ -1,706 +1,146 @@
-// Importación correcta de hooks comunes
-import { useState, useEffect } from 'react';
-import { Alert, ScrollView, View, TouchableOpacity, Text, ActivityIndicator, Image, Platform } from 'react-native';
-import { styled } from 'styled-components/native';
-import { Link, router } from 'expo-router';
-import * as ImagePicker from 'expo-image-picker';
-import * as FileSystem from 'expo-file-system';
 import { Picker } from '@react-native-picker/picker';
-import { Ionicons } from '@expo/vector-icons';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Alert, Button, Text, TextInput, View } from 'react-native';
 
-// Firebase (solo para autenticación)
-import { auth } from '../../../Firebase/firebaseconfig';
+const API_URL = 'https://felipe25.alwaysdata.net/api/tipo-producto.php';
 
-// Configuración
-// Configuración
-const ADMIN_EMAILS = [
-  'felipealvaro48@gmail.com',
-  'cesarapsricio@gmail.coml',  // Reemplaza con el primer correo adicional
-  'christoferj2002@gmail.com'   // Reemplaza con el segundo correo adicional
-];
-const API_URL = 'https://felipe25.alwaysdata.net/api/guardar.php';
-
-
-const TIPOS_PRODUCTO = [
-  'Físico',
-  'Digital',
-  'Servicio'
-];
-
-const TALLAS = [
-  'XS', 'S', 'M', 'L', 'XL', 'XXL'
-];
-
-const COLORES = [
-  'Rojo', 'Azul', 'Verde', 'Negro', 'Blanco', 'Amarillo', 
-  'Rosa', 'Morado', 'Gris', 'Naranja'
-];
-
-export default function AgregarProducto() {
-  const [formData, setFormData] = useState({
-    nombre: '',
-    descripcion: '',
-    precio: '',
-    stock: '',
-    categoria: '',
-    color: '',
-    talla: '',
-    tipo: 'Físico',
-    marca: '',
-    status: 'activo'
-  });
-  
-  const [selectedImage, setSelectedImage] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [marcas, setMarcas] = useState([]);
-  const [loadingMarcas, setLoadingMarcas] = useState(false);
+export default function CrearTipoProducto() {
   const [categorias, setCategorias] = useState([]);
-  const [loadingCategorias, setLoadingCategorias] = useState(false);
+  const [categoriaId, setCategoriaId] = useState('');
+  const [tipo, setTipo] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [loadingCategorias, setLoadingCategorias] = useState(true);
 
-
-  // Verificar permisos de administrador
-  if (!ADMIN_EMAILS.includes(auth.currentUser?.email || '')) {
-    return (
-      <Container>
-        <ErrorText>Acceso restringido</ErrorText>
-        <AuthButton onPress={() => router.back()}>
-          <ButtonText>Volver</ButtonText>
-        </AuthButton>
-      </Container>
-    );
-  }
-
-    useEffect(() => {
+  useEffect(() => {
     const cargarCategorias = async () => {
       setLoadingCategorias(true);
       try {
-        const response = await fetch(`${API_URL}?categorias`);
-        const data = await response.json();
-
-        if (data.success) {
+        const res = await fetch(API_URL, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        });
+        
+        const data = await res.json();
+        
+        if (res.ok && data.success) {
           setCategorias(data.categorias);
         } else {
-          setError(data.message || 'Error al cargar categorías');
+          Alert.alert('Error', data.message || 'No se pudieron cargar las categorías');
         }
-      } catch (err) {
-        console.error(err);
-        setError('No se pudo cargar categorías');
+      } catch (error) {
+        console.error('Error al cargar categorías:', error);
+        Alert.alert('Error', 'Fallo la conexión con el servidor');
       } finally {
         setLoadingCategorias(false);
       }
     };
-
+    
     cargarCategorias();
   }, []);
 
-// Cargar proveedores al iniciar
-  useEffect(() => {
-    const cargarProveedores = async () => {
-      setLoadingMarcas(true);
-      try {
-        const response = await fetch(API_URL, {
-          method: 'GET'
-        });
-        
-        if (!response.ok) {
-          throw new Error(`Error HTTP! estado: ${response.status}`);
-        }
-        
-        const data = await response.json();
-        
-        if (data.success) {
-          setMarcas(data.proveedores);
-        } else {
-          setError(data.message || 'Error al cargar proveedores');
-        }
-      } catch (error) {
-        console.error('Error cargando proveedores:', error);
-        setError('No se pudo conectar con el servidor');
-      } finally {
-        setLoadingMarcas(false);
-      }
-    };
-    
-    cargarProveedores();
-  }, []);
-
-  useEffect(() => {
-  const cargarProveedoresPorCategoria = async () => {
-    if (!formData.categoria) return;
-    setLoadingMarcas(true);
-    try {
-      const response = await fetch(`${API_URL}?proveedores_por_categoria&id_categoria=${formData.categoria}`);
-      const data = await response.json();
-
-      if (data.success) {
-        setMarcas(data.proveedores);
-      } else {
-        setError(data.message || 'Error al cargar proveedores');
-      }
-    } catch (error) {
-      console.error('Error al cargar proveedores:', error);
-      setError('Error al conectar con el servidor');
-    } finally {
-      setLoadingMarcas(false);
-    }
-  };
-
-  cargarProveedoresPorCategoria();
-}, [formData.categoria]);
-
-
-  const handleChange = (field, value) => {
-    setFormData(prev => ({
-      ...prev,
-      [field]: value
-    }));
-    setError('');
-  };
-
-  // Función para seleccionar imagen
-  const pickImage = async () => {
-    try {
-      // Pedir permisos
-      const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      
-      if (permissionResult.granted === false) {
-        Alert.alert('Error', 'Se necesitan permisos para acceder a las imágenes');
-        return;
-      }
-
-      // Mostrar opciones para web/emulador
-      if (Platform.OS === 'web') {
-        const result = await ImagePicker.launchImageLibraryAsync({
-          mediaTypes: ImagePicker.MediaTypeOptions.Images,
-          allowsEditing: true,
-          aspect: [1, 1],
-          quality: 0.8,
-          base64: true,
-        });
-
-        if (!result.canceled) {
-          setSelectedImage(result.assets[0]);
-        }
-      } else {
-        // Para dispositivos móviles - mostrar opciones
-        Alert.alert(
-          'Seleccionar imagen',
-          'Elige una opción',
-          [
-            { text: 'Cámara', onPress: () => openCamera() },
-            { text: 'Galería', onPress: () => openGallery() },
-            { text: 'Cancelar', style: 'cancel' }
-          ]
-        );
-      }
-    } catch (error) {
-      console.error('Error picking image:', error);
-      Alert.alert('Error', 'Error al seleccionar imagen');
-    }
-  };
-
-  const openCamera = async () => {
-    try {
-      const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-      
-      if (permissionResult.granted === false) {
-        Alert.alert('Error', 'Se necesitan permisos para usar la cámara');
-        return;
-      }
-
-      const result = await ImagePicker.launchCameraAsync({
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled) {
-        setSelectedImage(result.assets[0]);
-      }
-    } catch (error) {
-      console.error('Error opening camera:', error);
-      Alert.alert('Error', 'Error al abrir la cámara');
-    }
-  };
-
-  const openGallery = async () => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [1, 1],
-        quality: 0.8,
-      });
-
-      if (!result.canceled) {
-        setSelectedImage(result.assets[0]);
-      }
-    } catch (error) {
-      console.error('Error opening gallery:', error);
-      Alert.alert('Error', 'Error al abrir la galería');
-    }
-  };
-
-  // Función para convertir imagen a base64
-  const getBase64FromUri = async (uri) => {
-    try {
-      const base64 = await FileSystem.readAsStringAsync(uri, {
-        encoding: FileSystem.EncodingType.Base64,
-      });
-      return base64;
-    } catch (error) {
-      console.error('Error converting to base64:', error);
-      return null;
-    }
-  };
-
-const handleAgregarProducto = async () => {
-    // Validar campos requeridos
-    const requiredFields = ['nombre', 'descripcion', 'precio', 'stock', 'categoria'];
-    const missingFields = requiredFields.filter(field => !formData[field]);
-    
-    if (missingFields.length > 0) {
-      setError(`Faltan campos obligatorios: ${missingFields.join(', ')}`);
+  const guardarTipo = async () => {
+    if (!categoriaId || tipo.trim() === '') {
+      Alert.alert('Campos requeridos', 'Seleccione una categoría y escriba un tipo');
       return;
     }
 
     setLoading(true);
-
     try {
-      // Preparar datos para enviar - incluyendo TODOS los campos
-      const productoData = {
-        nombre: formData.nombre,
-        descripcion: formData.descripcion, // Mantenido como 'descripcion'
-        precio: Number(formData.precio),
-        stock: Number(formData.stock),
-        categoria: formData.categoria,
-        color: formData.color || null,
-        talla: formData.talla || null,
-        tipo: formData.tipo || 'Físico',
-        status: formData.status || 'activo',
-        comprados: 0, // Valor por defecto
-        marca: formData.marca || null
-      };
-
-      // Procesar imagen si existe
-      if (selectedImage) {
-        let imageBase64 = '';
-        
-        if (Platform.OS === 'web' && selectedImage.base64) {
-          imageBase64 = selectedImage.base64;
-        } else if (selectedImage.uri) {
-          imageBase64 = await FileSystem.readAsStringAsync(selectedImage.uri, {
-            encoding: FileSystem.EncodingType.Base64,
-          });
-        }
-
-        if (imageBase64) {
-          productoData.imagenURL = imageBase64; // Mantenido como 'imagenURL'
-          productoData.imagen_tipo = selectedImage.type || 'image/jpeg';
-        }
-      }
-
-      // Enviar al servidor
-      const response = await fetch(API_URL, {
+      const res = await fetch(API_URL, {
         method: 'POST',
-        headers: {
+        headers: { 
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(productoData)
+        body: JSON.stringify({
+          categoria_id: parseInt(categoriaId),
+          tipo: tipo.trim()
+        })
       });
 
-      const result = await response.json();
+      const data = await res.json();
 
-      if (!response.ok || !result.success) {
-        throw new Error(result.message || 'Error al guardar el producto');
+      if (res.ok && data.success) {
+        Alert.alert('Éxito', 'Tipo guardado correctamente', [
+          {
+            text: 'OK',
+            onPress: () => {
+              setTipo('');
+              setCategoriaId('');
+            }
+          }
+        ]);
+      } else {
+        Alert.alert('Error', data.message || 'No se pudo guardar el tipo');
       }
-
-      Alert.alert('Éxito', 'Producto guardado correctamente');
-      
-      // Resetear formulario
-      setFormData({
-        nombre: '',
-        descripcion: '',
-        precio: '',
-        stock: '',
-        categoria: '',
-        color: '',
-        talla: '',
-        tipo: 'Físico',
-        marca: '',
-        status: 'activo'
-      });
-      setSelectedImage(null);
-
     } catch (error) {
-      console.error('Error:', error);
-      setError(error.message);
-      Alert.alert('Error', error.message || 'Error al guardar el producto');
+      console.error('Error al guardar tipo:', error);
+      Alert.alert('Error', 'Hubo un problema al guardar');
     } finally {
       setLoading(false);
     }
   };
 
+  if (loadingCategorias) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color="#3b82f6" />
+        <Text style={{ marginTop: 10 }}>Cargando categorías...</Text>
+      </View>
+    );
+  }
+
   return (
-    <ScrollContainer>
-      <Container>
-        <Title>Agregar Nuevo Producto</Title>
+    <View style={{ padding: 20 }}>
+      <Text style={{ fontSize: 22, marginBottom: 20, fontWeight: 'bold' }}>
+        Agregar Tipo de Producto
+      </Text>
 
-        {error && (
-          <ErrorText>{error}</ErrorText>
-        )}
+      <Text style={{ marginBottom: 8, fontSize: 16 }}>Selecciona una Categoría:</Text>
+      <View style={{ 
+        borderWidth: 1, 
+        borderColor: '#ccc', 
+        borderRadius: 5, 
+        marginBottom: 20,
+        backgroundColor: '#f0f0f0' 
+      }}>
+        <Picker
+          selectedValue={categoriaId}
+          onValueChange={setCategoriaId}
+          style={{ height: 50 }}
+        >
+          <Picker.Item label="Seleccione una categoría" value="" />
+          {categorias.map(cat => (
+            <Picker.Item key={cat.id} label={cat.nombre} value={cat.id.toString()} />
+          ))}
+        </Picker>
+      </View>
 
-        {/* Sección de Información Básica */}
-        <Card>
-          <SectionHeader>Información Básica</SectionHeader>
-          
-          <Input 
-            placeholder="Nombre del producto*" 
-            value={formData.nombre} 
-            onChangeText={(text) => handleChange('nombre', text)} 
-          />
-          
-          <Input 
-            placeholder="Descripción*" 
-            value={formData.descripcion} 
-            onChangeText={(text) => handleChange('descripcion', text)} 
-            multiline 
-            numberOfLines={3} 
-          />
-          
-          <Input 
-            placeholder="Precio* (ej: 19.99)" 
-            value={formData.precio} 
-            onChangeText={(text) => handleChange('precio', text)} 
-            keyboardType="numeric" 
-          />
-          
-          <Input 
-            placeholder="Stock disponible*" 
-            value={formData.stock} 
-            onChangeText={(text) => handleChange('stock', text)} 
-            keyboardType="numeric" 
-          />
-        </Card>
+      <Text style={{ marginBottom: 8, fontSize: 16 }}>Nombre del Tipo:</Text>
+      <TextInput
+        placeholder="Ej. Deportivo, Elegante..."
+        value={tipo}
+        onChangeText={setTipo}
+        style={{
+          borderWidth: 1,
+          borderColor: '#ccc',
+          borderRadius: 5,
+          padding: 12,
+          marginBottom: 20,
+          fontSize: 16,
+          backgroundColor: '#fff'
+        }}
+      />
 
-        {/* Sección de Categorización */}
-        <Card>
-          <SectionHeader>Categorización</SectionHeader>
-          
-          <Label>CATEGORÍA*</Label>
-          <PickerContainer>
-            <Picker
-              selectedValue={formData.categoria}
-              onValueChange={(itemValue) => handleChange('categoria', itemValue)}>
-              <Picker.Item label="Seleccione una categoría" value="" />
-              {categorias.map((cat) => (
-                <Picker.Item key={cat.id} label={cat.nombre} value={cat.id.toString()} />
-              ))}
-            </Picker>
-          </PickerContainer>
-
-
-          <Label>TIPO DE PRODUCTO</Label>
-          <PickerContainer>
-            <Picker
-              selectedValue={formData.tipo}
-              onValueChange={(itemValue) => handleChange('tipo', itemValue)}>
-              {TIPOS_PRODUCTO.map((tipo) => (
-                <Picker.Item key={tipo} label={tipo} value={tipo} />
-              ))}
-            </Picker>
-          </PickerContainer>
-
-          <Label>MARCA/PROVEEDOR</Label>
-          {loadingMarcas ? (
-            <ActivityIndicator size="small" color="#3b82f6" />
-          ) : (
-            <PickerContainer>
-              <Picker
-                selectedValue={formData.marca}
-                onValueChange={(itemValue) => handleChange('marca', itemValue)}>
-                <Picker.Item label="Seleccione un proveedor" value="" />
-                {marcas.map((proveedor) => (
-                  <Picker.Item 
-                    key={proveedor.id} 
-                    label={proveedor.nombre} 
-                    value={proveedor.id.toString()}
-                  />
-                ))}
-              </Picker>
-            </PickerContainer>
-          )}
-        </Card>
-
-        {/* Sección de Atributos */}
-        <Card>
-          <SectionHeader>Atributos</SectionHeader>
-          
-          <Label>COLOR</Label>
-          <PickerContainer>
-            <Picker
-              selectedValue={formData.color}
-              onValueChange={(itemValue) => handleChange('color', itemValue)}>
-              <Picker.Item label="Seleccione un color" value="" />
-              {COLORES.map((color) => (
-                <Picker.Item key={color} label={color} value={color} />
-              ))}
-            </Picker>
-          </PickerContainer>
-
-          <Label>TALLA</Label>
-          <PickerContainer>
-            <Picker
-              selectedValue={formData.talla}
-              onValueChange={(itemValue) => handleChange('talla', itemValue)}>
-              <Picker.Item label="Seleccione una talla" value="" />
-              {TALLAS.map((talla) => (
-                <Picker.Item key={talla} label={talla} value={talla} />
-              ))}
-            </Picker>
-          </PickerContainer>
-
-          <Label>ESTADO</Label>
-          <PickerContainer>
-            <Picker
-              selectedValue={formData.status}
-              onValueChange={(itemValue) => handleChange('status', itemValue)}>
-              <Picker.Item label="Activo" value="activo" />
-              <Picker.Item label="Inactivo" value="inactivo" />
-              <Picker.Item label="Agotado" value="agotado" />
-            </Picker>
-          </PickerContainer>
-        </Card>
-
-        {/* Sección de Imagen */}
-        <Card>
-          <SectionHeader>Imagen del Producto</SectionHeader>
-          
-          <ImageSection>
-            <ImageButton onPress={pickImage}>
-              <IconWrapper>
-                <Ionicons name={selectedImage ? "camera-reverse" : "image"} size={20} color="white" />
-              </IconWrapper>
-              <ButtonText>
-                {selectedImage ? 'Cambiar Imagen' : 'Seleccionar Imagen'}
-              </ButtonText>
-            </ImageButton>
-            
-            {selectedImage && (
-              <ImagePreview>
-                <PreviewImage 
-                  source={{ uri: selectedImage.uri }} 
-                  resizeMode="cover"
-                />
-                <RemoveImageButton onPress={() => setSelectedImage(null)}>
-                  <RemoveImageText>✕</RemoveImageText>
-                </RemoveImageButton>
-              </ImagePreview>
-            )}
-          </ImageSection>
-        </Card>
-
-        {/* Botón de Acción */}
-        <AuthButton onPress={handleAgregarProducto} disabled={loading}>
-          {loading ? (
-            <ActivityIndicator color="white" />
-          ) : (
-            <>
-              <IconWrapper>
-                <Ionicons name="add-circle" size={20} color="white" />
-              </IconWrapper>
-              <ButtonText>Agregar Producto</ButtonText>
-            </>
-          )}
-        </AuthButton>
-
-        <Link href="/home" asChild>
-          <NavLink>
-            <NavLinkText>Volver al inicio</NavLinkText>
-          </NavLink>
-        </Link>
-      </Container>
-    </ScrollContainer>
+      {loading ? (
+        <View style={{ alignItems: 'center', marginTop: 20 }}>
+          <ActivityIndicator size="large" color="#10b981" />
+          <Text style={{ marginTop: 10 }}>Guardando...</Text>
+        </View>
+      ) : (
+        <Button title="Guardar Tipo" onPress={guardarTipo} color="#10b981" />
+      )}
+    </View>
   );
 }
-
-// Estilos
-const ScrollContainer = styled(ScrollView)`
-  flex: 1;
-  background-color: #f8fafc;
-`;
-
-const Container = styled(View)`
-  flex: 1;
-  padding: 30px 25px;
-`;
-
-const Title = styled(Text)`
-  font-size: 28px;
-  font-weight: 700;
-  text-align: center;
-  margin-bottom: 30px;
-  color: #1e293b;
-  letter-spacing: 0.5px;
-`;
-
-const Card = styled(View)`
-  background-color: white;
-  border-radius: 12px;
-  padding: 20px;
-  margin-bottom: 20px;
-  shadow-color: #64748b;
-  shadow-offset: 0px 4px;
-  shadow-opacity: 0.1;
-  shadow-radius: 6px;
-  elevation: 5;
-`;
-
-const Input = styled.TextInput`
-  background-color: #f8fafc;
-  padding: 16px;
-  border-radius: 10px;
-  margin-bottom: 18px;
-  border: 1px solid #e2e8f0;
-  font-size: 16px;
-  color: #334155;
-`;
-
-const Label = styled(Text)`
-  font-size: 15px;
-  margin-bottom: 8px;
-  color: #475569;
-  font-weight: 600;
-  margin-left: 3px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-`;
-
-const PickerContainer = styled(View)`
-  background-color: #f8fafc;
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
-  margin-bottom: 18px;
-  overflow: hidden;
-`;
-
-const ImageSection = styled(View)`
-  margin-bottom: 25px;
-`;
-
-const ImageButton = styled(TouchableOpacity)`
-  background-color: #3b82f6;
-  padding: 16px 24px;
-  border-radius: 10px;
-  align-items: center;
-  margin-bottom: 15px;
-  flex-direction: row;
-  justify-content: center;
-  shadow-color: #3b82f6;
-  shadow-offset: 0px 2px;
-  shadow-opacity: 0.2;
-  shadow-radius: 4px;
-  elevation: 3;
-`;
-
-const ImagePreview = styled(View)`
-  position: relative;
-  align-items: center;
-  margin-top: 15px;
-`;
-
-const PreviewImage = styled(Image)`
-  width: 240px;
-  height: 240px;
-  border-radius: 12px;
-  border-width: 1px;
-  border-color: #f1f5f9;
-`;
-
-const RemoveImageButton = styled(TouchableOpacity)`
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background-color: #ef4444;
-  border-radius: 15px;
-  width: 30px;
-  height: 30px;
-  align-items: center;
-  justify-content: center;
-  shadow-color: #000;
-  shadow-offset: 0px 1px;
-  shadow-opacity: 0.2;
-  shadow-radius: 2px;
-  elevation: 2;
-`;
-
-const RemoveImageText = styled(Text)`
-  color: white;
-  font-weight: bold;
-  font-size: 14px;
-`;
-
-const AuthButton = styled(TouchableOpacity)`
-  background-color: #10b981;
-  padding: 18px;
-  border-radius: 10px;
-  align-items: center;
-  margin-top: 20px;
-  margin-bottom: 15px;
-  shadow-color: #10b981;
-  shadow-offset: 0px 3px;
-  shadow-opacity: 0.3;
-  shadow-radius: 5px;
-  elevation: 4;
-  flex-direction: row;
-  justify-content: center;
-`;
-
-const ButtonText = styled(Text)`
-  color: white;
-  font-weight: 600;
-  font-size: 17px;
-  letter-spacing: 0.5px;
-`;
-
-const NavLink = styled(TouchableOpacity)`
-  padding: 12px;
-  border-radius: 8px;
-  align-items: center;
-  margin-top: 15px;
-`;
-
-const NavLinkText = styled(Text)`
-  color: #6366f1;
-  font-weight: 600;
-  text-align: center;
-  font-size: 16px;
-`;
-
-const ErrorText = styled(Text)`
-  color: #dc2626;
-  font-size: 15px;
-  text-align: center;
-  margin: 20px 0;
-  padding: 15px;
-  background-color: #fef2f2;
-  border-radius: 8px;
-  border-left-width: 4px;
-  border-left-color: #dc2626;
-`;
-
-const SectionHeader = styled(Text)`
-  font-size: 18px;
-  font-weight: 600;
-  color: #334155;
-  margin-top: 25px;
-  margin-bottom: 15px;
-  padding-bottom: 8px;
-  border-bottom-width: 1px;
-  border-bottom-color: #e2e8f0;
-`;
-
-const IconWrapper = styled(View)`
-  margin-right: 10px;
-`;

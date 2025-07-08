@@ -16,7 +16,7 @@ const ADMIN_EMAILS = [
   'cesarapsricio@gmail.com',
   'christoferj2002@gmail.com'
 ];
-const API_URL = 'https://felipe25.alwaysdata.net/api/guardar.php';
+const API_URL = 'https://felipe25.alwaysdata.net/api/proveedores.php';
 
 export default function AgregarProveedor() {
   const [formData, setFormData] = useState({
@@ -32,7 +32,43 @@ export default function AgregarProveedor() {
   const [loadingCategorias, setLoadingCategorias] = useState(false);
 
   // Verificar permisos de administrador
-  if (!ADMIN_EMAILS.includes(auth.currentUser?.email || '')) {
+  const isAdmin = ADMIN_EMAILS.includes(auth.currentUser?.email || '');
+
+  // Cargar categorías al iniciar
+  useEffect(() => {
+    const cargarCategorias = async () => {
+      if (!isAdmin) return;
+      
+      setLoadingCategorias(true);
+      try {
+        const formData = new FormData();
+        formData.append('accion', 'obtener_categorias');
+        
+        const response = await fetch(API_URL, {
+          method: 'POST',
+          body: formData
+        });
+        
+        const data = await response.json();
+
+        if (data.success) {
+          setCategorias(data.categorias);
+        } else {
+          setError(data.message || 'Error al cargar categorías');
+        }
+      } catch (err) {
+        console.error('Error cargando categorías:', err);
+        setError('No se pudo cargar categorías');
+      } finally {
+        setLoadingCategorias(false);
+      }
+    };
+
+    cargarCategorias();
+  }, [isAdmin]);
+
+  // Verificar permisos de administrador al renderizar
+  if (!isAdmin) {
     return (
       <Container>
         <ErrorText>Acceso restringido</ErrorText>
@@ -42,30 +78,6 @@ export default function AgregarProveedor() {
       </Container>
     );
   }
-
-  // Cargar categorías al iniciar
-  useEffect(() => {
-    const cargarCategorias = async () => {
-      setLoadingCategorias(true);
-      try {
-        const response = await fetch(`${API_URL}?categorias`);
-        const data = await response.json();
-
-        if (data.success) {
-          setCategorias(data.categorias);
-        } else {
-          setError(data.message || 'Error al cargar categorías');
-        }
-      } catch (err) {
-        console.error(err);
-        setError('No se pudo cargar categorías');
-      } finally {
-        setLoadingCategorias(false);
-      }
-    };
-
-    cargarCategorias();
-  }, []);
 
   const handleChange = (field, value) => {
     // Validar RUC si es el campo que está cambiando
@@ -98,11 +110,12 @@ export default function AgregarProveedor() {
         allowsEditing: true,
         aspect: [1, 1],
         quality: 0.8,
-        base64: Platform.OS === 'web',
+        base64: true, // Siempre necesitamos base64
       });
 
       if (!result.canceled) {
         setSelectedImage(result.assets[0]);
+        setError(''); // Limpiar error si había uno
       }
     } catch (error) {
       console.error('Error picking image:', error);
@@ -147,37 +160,39 @@ export default function AgregarProveedor() {
     if (!validarFormulario()) return;
 
     setLoading(true);
+    setError('');
 
     try {
-      // Preparar datos para enviar
-      const proveedorData = {
-        nombre: formData.nombre,
-        ruc: formData.ruc,
-        categoria: formData.categoria,
-        accion: 'guardar_proveedor' // Indicador para el backend
-      };
+      // Preparar FormData
+      const formDataToSend = new FormData();
+      formDataToSend.append('accion', 'guardar_proveedor');
+      formDataToSend.append('nombre', formData.nombre);
+      formDataToSend.append('ruc', formData.ruc);
+      formDataToSend.append('categoria', formData.categoria);
 
       // Procesar imagen
       let imageBase64 = '';
-      if (Platform.OS === 'web' && selectedImage.base64) {
-        imageBase64 = selectedImage.base64;
-      } else if (selectedImage.uri) {
-        imageBase64 = await FileSystem.readAsStringAsync(selectedImage.uri, {
-          encoding: FileSystem.EncodingType.Base64,
-        });
-      }
-
-      if (imageBase64) {
-        proveedorData.logo = imageBase64;
+      if (selectedImage) {
+        if (selectedImage.base64) {
+          imageBase64 = selectedImage.base64;
+        } else if (selectedImage.uri) {
+          // Para Android/iOS, leer el archivo
+          imageBase64 = await FileSystem.readAsStringAsync(selectedImage.uri, {
+            encoding: FileSystem.EncodingType.Base64,
+          });
+        }
+        
+        if (imageBase64) {
+          formDataToSend.append('logo', imageBase64);
+        }
       }
 
       // Enviar al servidor
       const response = await fetch(API_URL, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(proveedorData)
+        body: formDataToSend,
+        // NO incluir Content-Type para multipart/form-data
+        // El navegador lo establecerá automáticamente con el boundary correcto
       });
 
       const result = await response.json();
@@ -186,20 +201,26 @@ export default function AgregarProveedor() {
         throw new Error(result.message || 'Error al guardar el proveedor');
       }
 
-      Alert.alert('Éxito', 'Proveedor guardado correctamente');
-      
-      // Resetear formulario
-      setFormData({
-        nombre: '',
-        ruc: '',
-        categoria: ''
-      });
-      setSelectedImage(null);
+      Alert.alert('Éxito', 'Proveedor guardado correctamente', [
+        {
+          text: 'OK',
+          onPress: () => {
+            // Resetear formulario
+            setFormData({
+              nombre: '',
+              ruc: '',
+              categoria: ''
+            });
+            setSelectedImage(null);
+          }
+        }
+      ]);
 
     } catch (error) {
-      console.error('Error:', error);
-      setError(error.message);
-      Alert.alert('Error', error.message || 'Error al guardar el proveedor');
+      console.error('Error guardando proveedor:', error);
+      const errorMessage = error.message || 'Error al guardar el proveedor';
+      setError(errorMessage);
+      Alert.alert('Error', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -210,9 +231,9 @@ export default function AgregarProveedor() {
       <Container>
         <Title>Agregar Nuevo Proveedor</Title>
 
-        {error && (
+        {error ? (
           <ErrorText>{error}</ErrorText>
-        )}
+        ) : null}
 
         {/* Sección de Información Básica */}
         <Card>
@@ -239,7 +260,8 @@ export default function AgregarProveedor() {
             <PickerContainer>
               <Picker
                 selectedValue={formData.categoria}
-                onValueChange={(itemValue) => handleChange('categoria', itemValue)}>
+                onValueChange={(itemValue) => handleChange('categoria', itemValue)}
+              >
                 <Picker.Item label="Seleccione una categoría" value="" />
                 {categorias.map((cat) => (
                   <Picker.Item key={cat.id} label={cat.nombre} value={cat.id.toString()} />
@@ -301,7 +323,7 @@ export default function AgregarProveedor() {
   );
 }
 
-// Estilos (igual que en la versión anterior)
+// Estilos
 const ScrollContainer = styled(ScrollView)`
   flex: 1;
   background-color: #f8fafc;
@@ -431,6 +453,7 @@ const AuthButton = styled(TouchableOpacity)`
   elevation: 4;
   flex-direction: row;
   justify-content: center;
+  ${props => props.disabled && 'opacity: 0.6;'}
 `;
 
 const ButtonText = styled(Text)`
@@ -470,7 +493,6 @@ const SectionHeader = styled(Text)`
   font-size: 18px;
   font-weight: 600;
   color: #334155;
-  margin-top: 25px;
   margin-bottom: 15px;
   padding-bottom: 8px;
   border-bottom-width: 1px;
