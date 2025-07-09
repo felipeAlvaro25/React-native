@@ -1,3 +1,4 @@
+import { router } from "expo-router";
 import { Image, TouchableOpacity } from "react-native";
 import { default as styled } from "styled-components/native";
 export default function Relog() {
@@ -9,15 +10,15 @@ export default function Relog() {
       />
       <Texto>Sesión de Relojes</Texto>
 
-      <Boton >
+      <Boton onPress={() =>router.push("/Gama-Alta")}>
         <TextoBoton>Gama Alta</TextoBoton>
       </Boton>
 
-      <Boton >
+      <Boton onPress={() =>router.push("/Gama-Media")}>
         <TextoBoton>Gama Media</TextoBoton>
       </Boton>
 
-      <Boton >
+      <Boton onPress={() =>router.push("/Gama-Baja")}>
         <TextoBoton>Gama Baja</TextoBoton>
       </Boton>
       
