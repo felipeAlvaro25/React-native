@@ -31,6 +31,8 @@ type ViewMode = 'single' | 'double';
 // Constants
 const API_URL = 'https://felipe25.alwaysdata.net/api/ropa-caballero.php ';
 const { width: screenWidth } = Dimensions.get('window');
+
+// Categorías del filtro
 const categorias = [
     { id: 'todos', nombre: 'Todos' },
     { id: 'popular', nombre: 'Popular' },
@@ -41,18 +43,18 @@ const categorias = [
     { id: 'gala', nombre: 'Gala' }
 ];
 
-// Main Component
-function Caballero() {
+export default function Caballero() {
     const [productos, setProductos] = useState<Producto[]>([]);
     const [loading, setLoading] = useState(true);
-    const [userProfile, setUserProfile] = useState<any>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('double');
     const [sidebarVisible, setSidebarVisible] = useState(false);
     const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todos');
 
+    // Animaciones
     const sidebarAnimation = useRef(new Animated.Value(-screenWidth * 0.8)).current;
     const overlayAnimation = useRef(new Animated.Value(0)).current;
 
+    // Menú lateral
     const datarutas: Ruta[] = [
         { name: "Zapatillas", href: "/(zapatillas)" },
         { name: "Ropa", href: "/(ropa)" },
@@ -60,46 +62,36 @@ function Caballero() {
         { name: "Admin", href: "/(admin)" },
     ];
 
-    // Función para cargar productos
+    // Función para cargar productos desde el backend
     const cargarProductos = async () => {
         setLoading(true);
         try {
             let url = `${API_URL}?categoria=caballero`;
-            if (categoriaFiltro !== 'todos') {
-                if (categoriaFiltro === 'popular') {
-                    url += '&popular=true&limit=6';
-                } else {
-                    url += `&tipo=${categoriaFiltro}`;
-                }
+
+            if (categoriaFiltro === 'popular') {
+                url += '&popular=true&limit=6'; // Popular y máximo 6
+            } else if (categoriaFiltro !== 'todos') {
+                url += `&tipo=${categoriaFiltro}`;
             }
+
             const response = await fetch(url);
             if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
+
             if (data.success) {
                 setProductos(data.productos);
             } else {
                 throw new Error(data.message || 'Error loading products');
             }
         } catch (error) {
-            console.error("Error loading products:", error);
-            Alert.alert('Error', 'Could not load products');
+            console.error("Error fetching products:", error);
+            Alert.alert('Error', 'No se pudieron cargar los productos.');
         } finally {
             setLoading(false);
         }
     };
 
-    // Cerrar sesión
-    const handleSignOut = async () => {
-        try {
-            await auth.signOut();
-            Alert.alert("Éxito", "Sesión cerrada correctamente.");
-        } catch (error) {
-            console.error("Error al cerrar sesión:", error);
-            Alert.alert("Error", "No se pudo cerrar la sesión.");
-        }
-    };
-
-    // Abrir sidebar
+    // Abrir menú lateral
     const openSidebar = () => {
         setSidebarVisible(true);
         Animated.parallel([
@@ -116,7 +108,7 @@ function Caballero() {
         ]).start();
     };
 
-    // Cerrar sidebar
+    // Cerrar menú lateral
     const closeSidebar = () => {
         Animated.parallel([
             Animated.timing(sidebarAnimation, {
@@ -134,53 +126,20 @@ function Caballero() {
         });
     };
 
-    // Renderizar item del menú
-    const renderItem = ({ item }: { item: Ruta }) => (
-        <SidebarLinkButton onPress={() => {}}>
-            <SidebarIconContainer>
-                <MaterialIcons name="shopping-bag" size={24} color="white" />
-            </SidebarIconContainer>
-            <SidebarTextContainer>
-                <SidebarTexto>{item.name}</SidebarTexto>
-            </SidebarTextContainer>
-            <Flecha name="chevron-right" size={20} />
-        </SidebarLinkButton>
-    );
-
-    // Render producto single column
+    // Renderizar un producto en vista simple
     const renderProductoSingle = ({ item }: { item: Producto }) => (
         <ProductoContainer>
             <ProductoImageContainer>
                 {item.imagenURL ? (
                     <ProductoImage source={{ uri: item.imagenURL }} />
                 ) : (
-                    <PlaceholderImage>
-                        <Primero name="image" size={30} />
-                    </PlaceholderImage>
+                    <PlaceholderImage><MaterialIcons name="image" size={30} color="white" /></PlaceholderImage>
                 )}
-                {item.esPopular && (
-                    <PopularBadge>
-                        <PopularBadgeText>POPULAR</PopularBadgeText>
-                    </PopularBadge>
-                )}
+                {item.esPopular && <PopularBadge><PopularBadgeText>POPULAR</PopularBadgeText></PopularBadge>}
             </ProductoImageContainer>
             <ProductoInfo>
                 <ProductoNombre>{item.nombre}</ProductoNombre>
                 <ProductoDescripcion>{item.descripcion}</ProductoDescripcion>
-                <ProductoAtributosContainer>
-                    {item.color && (
-                        <ProductoAtributo>
-                            <ProductoColorCircle color={item.color} />
-                            <ProductoAtributoText>{item.color}</ProductoAtributoText>
-                        </ProductoAtributo>
-                    )}
-                    {item.talla && (
-                        <ProductoAtributo>
-                            <MaterialIcons name="straighten" size={14} color="#666" />
-                            <ProductoAtributoText>{item.talla}</ProductoAtributoText>
-                        </ProductoAtributo>
-                    )}
-                </ProductoAtributosContainer>
                 <ProductoDetailsContainer>
                     <ProductoPrecio>${item.precio.toFixed(2)}</ProductoPrecio>
                     <ProductoStock>{item.stock > 0 ? 'En stock' : 'Agotado'}</ProductoStock>
@@ -192,22 +151,16 @@ function Caballero() {
         </ProductoContainer>
     );
 
-    // Render producto double column
+    // Renderizar un producto en vista doble
     const renderProductoDouble = ({ item }: { item: Producto }) => (
         <ProductoContainerDouble>
             <ProductoImageContainerDouble>
                 {item.imagenURL ? (
                     <ProductoImage source={{ uri: item.imagenURL }} />
                 ) : (
-                    <PlaceholderImageDouble>
-                        <Primero name="image" size={30} />
-                    </PlaceholderImageDouble>
+                    <PlaceholderImageDouble><MaterialIcons name="image" size={30} color="white" /></PlaceholderImageDouble>
                 )}
-                {item.esPopular && (
-                    <PopularBadgeDouble>
-                        <PopularBadgeText>POPULAR</PopularBadgeText>
-                    </PopularBadgeDouble>
-                )}
+                {item.esPopular && <PopularBadgeDouble><PopularBadgeText>POPULAR</PopularBadgeText></PopularBadgeDouble>}
             </ProductoImageContainerDouble>
             <ProductoInfoDouble>
                 <ProductoNombreDouble>{item.nombre}</ProductoNombreDouble>
@@ -223,14 +176,20 @@ function Caballero() {
         </ProductoContainerDouble>
     );
 
+    // Efecto para cargar productos al cambiar filtro
     useEffect(() => {
         cargarProductos();
     }, [categoriaFiltro]);
 
     return (
         <>
+            {/* Background Gradient */}
             <GradientBackground />
+
+            {/* Blurred Overlay */}
             <BlurredOverlay />
+
+            {/* Main Content */}
             <MainScrollView showsVerticalScrollIndicator={false}>
                 <Container>
                     <HeaderSection>
@@ -238,15 +197,14 @@ function Caballero() {
                             <MenuButton onPress={openSidebar}>
                                 <MaterialIcons name="menu" size={28} color="white" />
                             </MenuButton>
-                            <SignOutButton onPress={handleSignOut}>
+                            <SignOutButton onPress={() => auth.signOut()}>
                                 <ButtonText>Cerrar sesión</ButtonText>
                                 <AntDesign name="logout" size={18} color="white" style={{ marginLeft: 8 }} />
                             </SignOutButton>
                         </HeaderTopRow>
-                        <WelcomeText>
-                            ¡Bienvenido {userProfile?.nombre || auth.currentUser?.email}!
-                        </WelcomeText>
+                        <WelcomeText>¡Bienvenido!</WelcomeText>
                     </HeaderSection>
+
                     <SectionContainer>
                         <SectionHeader>
                             <Titulo>Ropa para Caballero</Titulo>
@@ -268,30 +226,19 @@ function Caballero() {
                                     active={viewMode === 'single'}
                                     onPress={() => setViewMode('single')}
                                 >
-                                    <MaterialIcons 
-                                        name="view-agenda" 
-                                        size={18} 
-                                        color={viewMode === 'single' ? '#fff' : '#E53935'} 
-                                    />
-                                    <ViewModeText active={viewMode === 'single'}>
-                                        Una columna
-                                    </ViewModeText>
+                                    <MaterialIcons name="view-agenda" size={18} color={viewMode === 'single' ? '#fff' : '#E53935'} />
+                                    <ViewModeText active={viewMode === 'single'}>Una columna</ViewModeText>
                                 </ViewModeButton>
                                 <ViewModeButton 
                                     active={viewMode === 'double'}
                                     onPress={() => setViewMode('double')}
                                 >
-                                    <MaterialIcons 
-                                        name="view-module" 
-                                        size={18} 
-                                        color={viewMode === 'double' ? '#fff' : '#E53935'} 
-                                    />
-                                    <ViewModeText active={viewMode === 'double'}>
-                                        Dos columnas
-                                    </ViewModeText>
+                                    <MaterialIcons name="view-module" size={18} color={viewMode === 'double' ? '#fff' : '#E53935'} />
+                                    <ViewModeText active={viewMode === 'double'}>Dos columnas</ViewModeText>
                                 </ViewModeButton>
                             </ViewModeContainer>
                         </SectionHeader>
+
                         {loading ? (
                             <LoadingContainer>
                                 <ActivityIndicator size="large" color="#E53935" />
@@ -299,9 +246,7 @@ function Caballero() {
                             </LoadingContainer>
                         ) : productos.length > 0 ? (
                             <ProductsList 
-                                data={categoriaFiltro === 'popular' ? productos.filter(p => p.esPopular) : 
-                                     categoriaFiltro === 'todos' ? productos : 
-                                     productos.filter(p => p.tipo === categoriaFiltro)}
+                                data={productos}
                                 renderItem={viewMode === 'single' ? renderProductoSingle : renderProductoDouble}
                                 keyExtractor={(item) => item.id}
                                 numColumns={viewMode === 'double' ? 2 : 1}
@@ -311,11 +256,12 @@ function Caballero() {
                             />
                         ) : (
                             <NoProductsContainer>
-                                <NoProductsText>No hay productos en esta categoría</NoProductsText>
+                                <NoProductsText>No hay productos disponibles</NoProductsText>
                                 <MaterialIcons name="search-off" size={40} color="#E53935" />
                             </NoProductsContainer>
                         )}
                     </SectionContainer>
+
                     <FooterContainer>
                         <AntDesign name="gitlab" size={60} color="#E53935"/>
                         <FooterText>Colección Caballero 2023</FooterText>
@@ -347,7 +293,17 @@ function Caballero() {
                         <SidebarContent>
                             <SidebarMenuList 
                                 data={datarutas} 
-                                renderItem={renderItem} 
+                                renderItem={({ item }) => (
+                                    <SidebarLinkButton onPress={() => {}}>
+                                        <SidebarIconContainer>
+                                            <MaterialIcons name="shopping-bag" size={24} color="white" />
+                                        </SidebarIconContainer>
+                                        <SidebarTextContainer>
+                                            <SidebarTexto>{item.name}</SidebarTexto>
+                                        </SidebarTextContainer>
+                                        <Flecha name="chevron-right" size={20} />
+                                    </SidebarLinkButton>
+                                )}
                                 keyExtractor={(item) => item.name}
                                 scrollEnabled={false}
                             />
@@ -361,7 +317,6 @@ function Caballero() {
         </>
     );
 }
-
 export default Caballero;
 
 const GradientBackground = styled(LinearGradient).attrs({
