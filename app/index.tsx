@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { Alert, ActivityIndicator, ScrollView } from 'react-native';
+import { Alert, ActivityIndicator, ScrollView, Image } from 'react-native';
 import { styled } from 'styled-components/native';
 import { Link, router } from 'expo-router';
 import { AntDesign } from '@expo/vector-icons';
 import { FirebaseError } from 'firebase/app';
+import { LinearGradient } from 'expo-linear-gradient';
 
 // Firebase imports
 import { auth } from '../Firebase/firebaseconfig';
@@ -320,112 +321,125 @@ const validateAndCreateTables = async () => {
 
   return (
     <ScrollView contentContainerStyle={{ flexGrow: 1 }}>
-      <Container>
-        {user ? (
-          <AuthenticatedView>
-            <WelcomeText>Bienvenido, {userProfile?.nombre || user.email}</WelcomeText>
-            
-            <AuthButton onPress={handleSignOut}>
-              <ButtonText>Cerrar sesión</ButtonText>
-            </AuthButton>
-            
-            {/* Solo visible para los admins */}
-            {ADMIN_EMAILS.includes(user.email) && (
-              <>
-                <Link href="/(admin)/productos/agregar-producto" asChild>
-                  <AuthButton style={{ backgroundColor: '#4CAF50' }}>
-                    <ButtonText>Agregar Productos</ButtonText>
-                  </AuthButton>
-                </Link>
-                
-                <Link href="/home" asChild>
-                  <AuthButton style={{ backgroundColor: '#2196F3' }}>
-                    <ButtonText>Ir al Panel Admin</ButtonText>
-                  </AuthButton>
-                </Link>
-              </>
-            )}
-            
-            <Link href="/home" asChild>
-              <NavLink>Ir al inicio</NavLink>
-            </Link>
-          </AuthenticatedView>
-        ) : (
-          <AuthView>
-            <Title>{isSignUp ? 'Registro' : 'Inicio de sesión'}</Title>
-            <AuthIcon name="lock" size={50} />
-            
-            {error ? <ErrorText>{error}</ErrorText> : null}
-            
-            {isSignUp && (
-              <>
-                <StyledInput
-                  placeholder="Nombre"
-                  value={formData.nombre}
-                  onChangeText={(text) => handleChange('nombre', text)}
-                />
-                <StyledInput
-                  placeholder="Apellido"
-                  value={formData.apellido}
-                  onChangeText={(text) => handleChange('apellido', text)}
-                />
-                <StyledInput
-                  placeholder="Nombre de usuario"
-                  value={formData.usuario}
-                  onChangeText={(text) => handleChange('usuario', text)}
-                  autoCapitalize="none"
-                />
-                <StyledInput
-                  placeholder="Edad"
-                  value={formData.edad}
-                  onChangeText={(text) => handleChange('edad', text)}
-                  keyboardType="numeric"
-                />
-                <StyledInput
-                  placeholder="Dirección"
-                  value={formData.direccion}
-                  onChangeText={(text) => handleChange('direccion', text)}
-                />
-              </>
-            )}
-            
-            <StyledInput
-              placeholder="Correo electrónico"
-              value={formData.email}
-              onChangeText={(text) => handleChange('email', text)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <StyledInput
-              placeholder="Contraseña"
-              value={formData.password}
-              onChangeText={(text) => handleChange('password', text)}
-              secureTextEntry
-              autoCapitalize="none"
-            />
-            
-            <AuthButton onPress={isSignUp ? handleSignUp : handleSignIn}>
-              <ButtonText>{isSignUp ? 'Registrarse' : 'Iniciar sesión'}</ButtonText>
-            </AuthButton>
-            
-            <ToggleAuthButton onPress={() => setIsSignUp(!isSignUp)}>
-              <ToggleAuthText>
-                {isSignUp ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
-              </ToggleAuthText>
-            </ToggleAuthButton>
-          </AuthView>
-        )}
-      </Container>
+      <GradientBackground>
+        <Container>
+          {user ? (
+            <AuthenticatedView>
+              <WelcomeText>Bienvenido, {userProfile?.nombre || user.email}</WelcomeText>
+              
+              <AuthButton onPress={handleSignOut}>
+                <ButtonText>Cerrar sesión</ButtonText>
+              </AuthButton>
+              
+              {/* Solo visible para los admins */}
+              {ADMIN_EMAILS.includes(user.email) && (
+                <>
+                  <Link href="/(admin)/productos/agregar-producto" asChild>
+                    <AuthButton style={{ backgroundColor: '#4CAF50' }}>
+                      <ButtonText>Agregar Productos</ButtonText>
+                    </AuthButton>
+                  </Link>
+                  
+                  <Link href="/home" asChild>
+                    <AuthButton style={{ backgroundColor: '#2196F3' }}>
+                      <ButtonText>Ir al Panel Admin</ButtonText>
+                    </AuthButton>
+                  </Link>
+                </>
+              )}
+              
+              <Link href="/home" asChild>
+                <NavLink>Ir al inicio</NavLink>
+              </Link>
+            </AuthenticatedView>
+          ) : (
+            <AuthView>
+              <Image 
+                source={require("../style/logo.jpg")} 
+                style={{ width: 400, height: 300 }} 
+              />
+              <Title>{isSignUp ? 'Registro' : 'Inicio de sesión'}</Title>
+              <AuthIcon name="lock" size={50} />
+              
+              {error ? <ErrorText>{error}</ErrorText> : null}
+              
+              {isSignUp && (
+                <>
+                  <StyledInput
+                    placeholder="Nombre"
+                    value={formData.nombre}
+                    onChangeText={(text) => handleChange('nombre', text)}
+                  />
+                  <StyledInput
+                    placeholder="Apellido"
+                    value={formData.apellido}
+                    onChangeText={(text) => handleChange('apellido', text)}
+                  />
+                  <StyledInput
+                    placeholder="Nombre de usuario"
+                    value={formData.usuario}
+                    onChangeText={(text) => handleChange('usuario', text)}
+                    autoCapitalize="none"
+                  />
+                  <StyledInput
+                    placeholder="Edad"
+                    value={formData.edad}
+                    onChangeText={(text) => handleChange('edad', text)}
+                    keyboardType="numeric"
+                  />
+                  <StyledInput
+                    placeholder="Dirección"
+                    value={formData.direccion}
+                    onChangeText={(text) => handleChange('direccion', text)}
+                  />
+                </>
+              )}
+              <StyledInput
+                placeholder="Correo electrónico"
+                value={formData.email}
+                onChangeText={(text) => handleChange('email', text)}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <StyledInput
+                placeholder="Contraseña"
+                value={formData.password}
+                onChangeText={(text) => handleChange('password', text)}
+                secureTextEntry
+                autoCapitalize="none"
+              />
+              <AuthButton onPress={isSignUp ? handleSignUp : handleSignIn}>
+                <ButtonText>{isSignUp ? 'Registrarse' : 'Iniciar sesión'}</ButtonText>
+              </AuthButton>
+              
+              <ToggleAuthButton onPress={() => setIsSignUp(!isSignUp)}>
+                <ToggleAuthText>
+                  {isSignUp ? '¿Ya tienes cuenta? Inicia sesión' : '¿No tienes cuenta? Regístrate'}
+                </ToggleAuthText>
+              </ToggleAuthButton>
+            </AuthView>
+          )}
+        </Container>
+      </GradientBackground>
     </ScrollView>
   );
 }
 
-// Styled Components (mantenidos igual)
+// Contenedor con degradado
+const GradientBackground = styled(LinearGradient).attrs({
+  colors: ['rgba(154, 150, 27, 0.49)', 'rgba(27, 138, 146, 0.8)', 'rgba(126, 26, 26, 0.8)'],
+  start: { x: 0, y: 0 },
+  end: { x: 1, y: 1 },
+})`
+  flex: 1;
+  padding: 20px;
+`;
+
+// Ajustamos el Container para que sea transparente
 const Container = styled.View`
   flex: 1;
   justify-content: center;
-  padding: 20px;
-  background-color: #f5f5f5;
+  background-color: transparent;
 `;
 
 const LoadingContainer = styled.View`

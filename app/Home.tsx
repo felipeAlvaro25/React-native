@@ -7,6 +7,9 @@ import { signOut } from 'firebase/auth';
 import { useEffect, useState, useRef } from 'react';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { useCart } from './Contexts/CartContext';
+import type { CartItem } from './Contexts/CartContext';
+
 
 type AppRoute = "/(admin)" | "/(zapatillas)" | "/(ropa)" | "/(usuario)" | "/(reloj)";
 
@@ -49,10 +52,13 @@ function Inicio() {
     const [userProfile, setUserProfile] = useState<any>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('double');
     const [sidebarVisible, setSidebarVisible] = useState(false);
-    
-    // Animación para el sidebar
+
+        // Animaciones
     const sidebarAnimation = useRef(new Animated.Value(-screenWidth * 0.8)).current;
     const overlayAnimation = useRef(new Animated.Value(0)).current;
+    const scaleAnim = useRef(new Animated.Value(1)).current; // Declaración añadida
+    
+    const { state, addItem } = useCart();
 
     const datarutas: Ruta[] = [
         { name: "Zapatillas", href: "/(zapatillas)" },
@@ -61,6 +67,58 @@ function Inicio() {
         { name: "Admin", href: "/(admin)" },
     ];
     
+
+    const animateAddToCart = () => {
+    scaleAnim.setValue(0.8);
+    Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 3,
+        useNativeDriver: true,
+    }).start();
+    };
+
+    
+
+    const handleAddToCart = (producto: Producto) => {
+    console.log('Intentando agregar producto:', producto);
+    
+    const cartItem = {
+        id: producto.id,
+        nombre: producto.nombre,
+        precio: producto.precio,
+        imagenURL: producto.imagenURL,
+        stock: producto.stock,
+        categoria: producto.categoria,
+        color: producto.color,
+        talla: producto.talla,
+        marca: producto.marca
+    };
+    
+    addItem(cartItem);
+    animateAddToCart();
+    
+    // Verificación inmediata del estado
+    console.log('Estado actual del carrito:', state);
+    };
+
+    const handleBuyNow = (producto: Producto) => {
+        const cartItem: Omit<CartItem, 'cantidad'> = {
+            id: producto.id,
+            nombre: producto.nombre,
+            precio: producto.precio,
+            imagenURL: producto.imagenURL,
+            stock: producto.stock,
+            categoria: producto.categoria,
+            color: producto.color,
+            talla: producto.talla,
+            marca: producto.marca
+        };
+        
+        addItem(cartItem);
+        router.navigate('/carrito');
+        Alert.alert('Producto listo', `Puedes proceder al pago de ${producto.nombre}`);
+    };
+
     const cargarProductos = async () => {
         setLoading(true);
         try {
@@ -115,16 +173,6 @@ function Inicio() {
                 }}
             />
         );
-    };
-
-    const handleAddToCart = (producto: Producto) => {
-        Alert.alert('Producto agregado', `Se agregó ${producto.nombre} al carrito`);
-        // Aquí puedes implementar la lógica para agregar al carrito
-    };
-
-    const handleBuyNow = (producto: Producto) => {
-        Alert.alert('Compra rápida', `Redirigiendo a compra de ${producto.nombre}`);
-        // Aquí puedes implementar la lógica para compra inmediata
     };
 
     // Función para obtener el perfil del usuario
@@ -198,7 +246,6 @@ function Inicio() {
         </Link>
     );
 
-    // Vista de un producto por fila (mejorada)
     const renderProductoSingle = ({ item }: { item: Producto }) => (
         <ProductoContainer>
             <ProductoImageContainer>
@@ -243,12 +290,18 @@ function Inicio() {
                 </ProductoDetailsContainer>
                 
                 <ProductoButtonsContainer>
-                    <AddToCartButton onPress={() => handleAddToCart(item)}>
+                    <TouchableOpacity 
+                        onPress={() => handleAddToCart(item)}
+                        style={[styles.addToCartButton, { transform: [{ scale: scaleAnim }] }]}
+                    >
                         <AddToCartText>Agregar al carrito</AddToCartText>
-                    </AddToCartButton>
-                    <BuyNowButton onPress={() => handleBuyNow(item)}>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        onPress={() => handleBuyNow(item)}
+                        style={styles.buyNowButton}
+                    >
                         <BuyNowText>Comprar ahora</BuyNowText>
-                    </BuyNowButton>
+                    </TouchableOpacity>
                 </ProductoButtonsContainer>
             </ProductoInfo>
         </ProductoContainer>
@@ -277,12 +330,18 @@ function Inicio() {
                 </ProductoDetailsContainerDouble>
                 
                 <ProductoButtonsContainerDouble>
-                    <AddToCartButtonDouble onPress={() => handleAddToCart(item)}>
+                    <TouchableOpacity 
+                        onPress={() => handleAddToCart(item)}
+                        style={[styles.addToCartButtonDouble, { transform: [{ scale: scaleAnim }] }]}
+                    >
                         <MaterialIcons name="add-shopping-cart" size={16} color="white" />
-                    </AddToCartButtonDouble>
-                    <BuyNowButtonDouble onPress={() => handleBuyNow(item)}>
+                    </TouchableOpacity>
+                    <TouchableOpacity 
+                        onPress={() => handleBuyNow(item)}
+                        style={styles.buyNowButtonDouble}
+                    >
                         <MaterialIcons name="flash-on" size={16} color="white" />
-                    </BuyNowButtonDouble>
+                    </TouchableOpacity>
                 </ProductoButtonsContainerDouble>
             </ProductoInfoDouble>
         </ProductoContainerDouble>
@@ -386,23 +445,46 @@ function Inicio() {
                 
                 {/* Barra de navegación inferior */}
                 <BottomTabBar>
-                    <TabButton onPress={() => {}}>
-                        <MaterialIcons name="home" size={24} color="#fff" />
-                        <TabButtonText>Inicio</TabButtonText>
+                    {/* Botón de Inicio */}
+                    <TabButton onPress={() => { router.navigate('/'); }}>
+                    <MaterialIcons name="home" size={24} color="#fff" />
+                    <TabButtonText>Inicio</TabButtonText>
                     </TabButton>
-                    
-                    <TabButton onPress={() => {}}>
-                        <MaterialIcons name="person" size={24} color="#fff" />
-                        <TabButtonText>Perfil</TabButtonText>
+
+                    {/* Botón de Perfil */}
+                    <TabButton onPress={() => { router.navigate('/perfil'); }}> {/* Asume una ruta /profile para el perfil */}
+                    <MaterialIcons name="person" size={24} color="#fff" />
+                    <TabButtonText>Perfil</TabButtonText>
                     </TabButton>
-                    
-                    <TabButton onPress={() => {}}>
-                        <MaterialIcons name="search" size={24} color="#fff" />
-                        <TabButtonText>Buscar</TabButtonText>
+
+                    {/* Botón de Buscar */}
+                    <TabButton onPress={() => { router.navigate('/historial'); }}> {/* Asume una ruta /search para buscar */}
+                    <MaterialIcons name="search" size={24} color="#fff" />
+                    <TabButtonText>historial</TabButtonText>
                     </TabButton>
-                    
-                    <TabButton onPress={() => {}}>
-                        <MaterialIcons name="shopping-cart" size={24} color="#fff" />
+
+                    {/* Botón de Carrito */}
+                    <TabButton onPress={() => router.navigate('/carrito')}>
+                        <View style={{ position: 'relative' }}>
+                            <MaterialIcons name="shopping-cart" size={24} color="#fff" />
+                            {state.itemCount > 0 && (
+                                <View style={{
+                                    position: 'absolute',
+                                    right: -8,
+                                    top: -4,
+                                    backgroundColor: '#E24329',
+                                    borderRadius: 10,
+                                    width: 18,
+                                    height: 18,
+                                    justifyContent: 'center',
+                                    alignItems: 'center'
+                                }}>
+                                    <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>
+                                        {state.itemCount > 9 ? '9+' : state.itemCount}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
                         <TabButtonText>Carrito</TabButtonText>
                     </TabButton>
                 </BottomTabBar>
@@ -470,6 +552,7 @@ const ProductoCategoriaDouble = styled(Text)`
     align-self: flex-start;
     margin-bottom: 4px;
 `;
+
 
 const ProductoMarca = styled(Text)`
     font-size: 12px;
@@ -859,6 +942,7 @@ const ProductoPrecioDouble = styled(Text)`
     margin-bottom: 4px;
 `;
 
+
 const ProductoStockDouble = styled(Text)`
     font-size: 11px;
     color: #4CAF50;
@@ -903,27 +987,48 @@ const ProductoButtonsContainer = styled(View)`
     flex-direction: row;
     justify-content: space-between;
     margin-top: 10px;
+    z-index: 2;
 `;
 
-const AddToCartButton = styled(TouchableOpacity)`
-    background-color: #4CAF50;
-    padding: 10px 15px;
-    border-radius: 8px;
-    flex: 1;
-    margin-right: 8px;
-    align-items: center;
-    justify-content: center;
-`;
 
-const BuyNowButton = styled(TouchableOpacity)`
-    background-color: #E24329;
-    padding: 10px 15px;
-    border-radius: 8px;
-    flex: 1;
-    margin-left: 8px;
-    align-items: center;
-    justify-content: center;
-`;
+const styles = {
+  addToCartButton: {
+    backgroundColor: '#4CAF50',
+    padding: 10,
+    borderRadius: 8,
+    flex: 1,
+    marginRight: 8,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  buyNowButton: {
+    backgroundColor: '#E24329',
+    padding: 10,
+    borderRadius: 8,
+    flex: 1,
+    marginLeft: 8,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  addToCartButtonDouble: {
+    backgroundColor: '#4CAF50',
+    padding: 8,
+    borderRadius: 6,
+    flex: 1,
+    marginRight: 4,
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  buyNowButtonDouble: {
+    backgroundColor: '#E24329',
+    padding: 8,
+    borderRadius: 6,
+    flex: 1,
+    marginLeft: 4,
+    alignItems: 'center',
+    justifyContent: 'center'
+  }
+};
 
 const AddToCartText = styled(Text)`
     color: white;
@@ -942,26 +1047,7 @@ const ProductoButtonsContainerDouble = styled(View)`
     flex-direction: row;
     justify-content: space-between;
     margin-top: 10px;
-`;
-
-const AddToCartButtonDouble = styled(TouchableOpacity)`
-    background-color: #4CAF50;
-    padding: 8px;
-    border-radius: 6px;
-    flex: 1;
-    margin-right: 4px;
-    align-items: center;
-    justify-content: center;
-`;
-
-const BuyNowButtonDouble = styled(TouchableOpacity)`
-    background-color: #E24329;
-    padding: 8px;
-    border-radius: 6px;
-    flex: 1;
-    margin-left: 4px;
-    align-items: center;
-    justify-content: center;
+    z-index: 2;
 `;
 
 const MainContainer = styled(View)`
