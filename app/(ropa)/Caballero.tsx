@@ -40,9 +40,7 @@ const { width: screenWidth } = Dimensions.get('window');
 const categorias = [
     { id: 'todos', nombre: 'Todos' },
     { id: 'popular', nombre: 'Popular' },
-    { id: 'pantalon', nombre: 'Pantalones' },
     { id: 'jeans', nombre: 'Jeans' },
-    { id: 'camisa', nombre: 'Camisas' },
     { id: 'abrigo', nombre: 'Abrigos' },
     { id: 'sueter', nombre: 'Súeteres' },
     { id: 'deportiva', nombre: 'Deportiva' },
@@ -258,6 +256,7 @@ return (
         )}
     </>
 );
+export default Caballero;
 
 const GradientBackground = styled(LinearGradient).attrs({
   colors: ['rgba(255, 235, 238, 0.9)', 'rgba(255, 245, 245, 0.9)'],
@@ -810,5 +809,3 @@ const PopularBadgeText = styled(Text)`
     color: #000;
     font-weight: bold;
 `;
-
-export default Caballero;
