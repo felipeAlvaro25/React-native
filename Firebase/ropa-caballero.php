@@ -4,87 +4,96 @@ header('Content-Type: application/json; charset=utf-8');
 require_once 'config.php';
 
 $response = [];
-$allowedCategories = ['Caballero', 'Dama']; // Categorías permitidas
+$allowedCategories = ['caballero', 'dama'];
+$allowedTypes = ['pantalon', 'jeans', 'camisa', 'abrigo', 'sueter', 'deportiva', 'gala'];
 
 try {
-    // Verificar conexión a la base de datos
     if (!isset($conn) || $conn->connect_error) {
-        throw new Exception('Error de conexión a la base de datos', 500);
+        throw new Exception('Database connection error', 500);
     }
 
-    // Obtener parámetros de filtro (seguros con valores por defecto)
-    $categoria = isset($_GET['categoria']) ? $conn->real_escape_string($_GET['categoria']) : 'Caballero';
-    $sexo = isset($_GET['sexo']) ? $conn->real_escape_string($_GET['sexo']) : 'Caballero';
+    // Secure parameters with defaults
+    $categoria = isset($_GET['categoria']) ? strtolower($conn->real_escape_string($_GET['categoria'])) : 'caballero';
+    $tipo = isset($_GET['tipo']) ? $conn->real_escape_string($_GET['tipo']) : null;
     $limit = isset($_GET['limit']) ? (int)$_GET['limit'] : 0;
+    $popular = isset($_GET['popular']) ? filter_var($_GET['popular'], FILTER_VALIDATE_BOOLEAN) : false;
 
-    // Validar categoría
+    // Validate inputs
     if (!in_array($categoria, $allowedCategories)) {
-        throw new Exception('Categoría no válida', 400);
+        throw new Exception('Invalid category', 400);
     }
 
-    // Construir consulta SQL segura con prepared statements
+    // Base query
     $sql = "SELECT id, nombre, descripcion, precio, stock, categoria, 
                    imagenURL, color, talla, tipo, status, comprados, marca 
             FROM productos 
-            WHERE status = 'activo' AND categoria = ? AND sexo = ?";
+            WHERE status = 'activo' AND categoria = ? AND sexo = 'caballero'";
 
-    // Agregar límite si se especificó
+    // Add type filter if specified
+    if ($tipo && in_array($tipo, $allowedTypes)) {
+        $sql .= " AND tipo = ?";
+    }
+
+    // Sort by popularity if requested
+    if ($popular) {
+        $sql .= " ORDER BY comprados DESC";
+    }
+
+    // Add limit if specified
     if ($limit > 0) {
         $sql .= " LIMIT ?";
     }
 
     $stmt = $conn->prepare($sql);
-    
     if (!$stmt) {
-        throw new Exception('Error al preparar consulta: ' . $conn->error, 500);
+        throw new Exception('Query preparation error: ' . $conn->error, 500);
     }
 
-    // Bind parameters según si hay límite o no
+    // Dynamic parameter binding
+    $params = [$categoria];
+    $types = "s";
+    
+    if ($tipo && in_array($tipo, $allowedTypes)) {
+        $params[] = $tipo;
+        $types .= "s";
+    }
+    
     if ($limit > 0) {
-        $stmt->bind_param("ssi", $categoria, $sexo, $limit);
-    } else {
-        $stmt->bind_param("ss", $categoria, $sexo);
+        $params[] = $limit;
+        $types .= "i";
     }
 
-    // Ejecutar consulta
+    $stmt->bind_param($types, ...$params);
+
     if (!$stmt->execute()) {
-        throw new Exception('Error al ejecutar consulta: ' . $stmt->error, 500);
+        throw new Exception('Query execution error: ' . $stmt->error, 500);
     }
 
     $result = $stmt->get_result();
     $productos = [];
 
-    // Procesar resultados
     while($row = $result->fetch_assoc()) {
-        // Formatear datos
-        $row['precio'] = (float)$row['precio'];
-        $row['stock'] = (int)$row['stock'];
-        $row['comprados'] = (int)$row['comprados'];
-
-        // Construir URL completa de la imagen si existe
-        if (!empty($row['imagenURL'])) {
-            $row['imagenURL'] = 'https://felipe25.alwaysdata.net/api/uploads/productos/' . basename($row['imagenURL']);
-        } else {
-            $row['imagenURL'] = null; // Asegurar que sea null si no hay imagen
-        }
-
-        $productos[] = $row;
-    }
-
-    // Verificar si hay resultados
-    if (empty($productos)) {
-        $response = [
-            'success' => true,
-            'message' => 'No se encontraron productos',
-            'productos' => []
-        ];
-    } else {
-        $response = [
-            'success' => true,
-            'count' => count($productos),
-            'productos' => $productos
+        $productos[] = [
+            'id' => $row['id'],
+            'nombre' => $row['nombre'],
+            'descripcion' => $row['descripcion'],
+            'precio' => (float)$row['precio'],
+            'stock' => (int)$row['stock'],
+            'categoria' => strtolower($row['categoria']),
+            'tipo' => strtolower($row['tipo']),
+            'color' => $row['color'],
+            'talla' => $row['talla'],
+            'imagenURL' => $row['imagenURL'] ? 'https://felipe25.alwaysdata.net/api/uploads/productos/' . basename($row['imagenURL']) : null,
+            'esPopular' => $row['comprados'] > 15,
+            'marca' => $row['marca'] ?? null
         ];
     }
+
+    $response = [
+        'success' => true,
+        'count' => count($productos),
+        'productos' => $productos
+    ];
 
 } catch (Exception $e) {
     http_response_code($e->getCode() ?: 500);
@@ -94,15 +103,9 @@ try {
         'error_code' => $e->getCode()
     ];
 } finally {
-    // Cerrar conexiones
-    if (isset($stmt)) {
-        $stmt->close();
-    }
-    if (isset($conn)) {
-        $conn->close();
-    }
-
-    // Enviar respuesta
-    echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    if (isset($stmt)) $stmt->close();
+    if (isset($conn)) $conn->close();
+    
+    echo json_encode($response, JSON_UNESCAPED_UNICODE);
 }
 ?>
