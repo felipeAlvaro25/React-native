@@ -18,8 +18,8 @@ type Producto = {
     descripcion: string;
     precio: number;
     stock: number;
-    categoria: 'deportiva' | 'jeans' | 'gala' | 'abrigo' | 'popular';
-    tipo: 'jeans' | 'abrigo' | 'sueter' | 'deportiva' | 'gala';
+    categoria: 'Deportiva' | 'Jeans' | 'Gala' | 'Abrigo' | 'Popular';
+    tipo: 'Jeans' | 'Abrigo' | 'Sueter' | 'Deportiva' | 'Gala';
     imagenURL?: string | null;
     color?: string;
     talla?: string;
@@ -34,13 +34,13 @@ const { width: screenWidth } = Dimensions.get('window');
 
 // Categorías del filtro
 const categorias = [
-    { id: 'todos', nombre: 'Todos' },
-    { id: 'popular', nombre: 'Popular' },
-    { id: 'jeans', nombre: 'Jeans' },
-    { id: 'abrigo', nombre: 'Abrigos' },
-    { id: 'sueter', nombre: 'Súeteres' },
-    { id: 'deportiva', nombre: 'Deportiva' },
-    { id: 'gala', nombre: 'Gala' }
+    { id: 'Todos', nombre: 'Todos' },
+    { id: 'Popular', nombre: 'Popular' },
+    { id: 'Jeans', nombre: 'Jeans' },
+    { id: 'Abrigo', nombre: 'Abrigos' },
+    { id: 'Sueter', nombre: 'Súeteres' },
+    { id: 'Deportiva', nombre: 'Deportiva' },
+    { id: 'Gala', nombre: 'Gala' }
 ];
 
 export default function Caballero() {
@@ -66,10 +66,10 @@ export default function Caballero() {
     const cargarProductos = async () => {
         setLoading(true);
         try {
-            let url = `${API_URL}?categoria=caballero`;
+            let url = `${API_URL}?categoria=Caballero`;
 
-            if (categoriaFiltro === 'popular') {
-                url += '&popular=true&limit=6'; // Popular y máximo 6
+            if (categoriaFiltro === 'Popular') {
+                url += '&Popular=true&limit=6'; // Popular y máximo 6
             } else if (categoriaFiltro !== 'todos') {
                 url += `&tipo=${categoriaFiltro}`;
             }
