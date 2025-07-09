@@ -26,6 +26,7 @@ type Producto = {
     imagenURL?: string;
     color?: string;
     talla?: string;
+    esPopular?: boolean;
 };
 
 type ViewMode = 'single' | 'double';
@@ -36,11 +37,11 @@ const { width: screenWidth } = Dimensions.get('window');
 const categorias = [
     { id: 'todos', nombre: 'Todos' },
     { id: 'popular', nombre: 'Popular' },
+    { id: 'abrigo', nombre: 'Abrigo' },
     { id: 'deportiva', nombre: 'Deportiva' },
+    { id: 'de gala', nombre: 'Gala' },
     { id: 'jeans', nombre: 'Jeans' },
-    { id: 'de gala', nombre: 'De Gala' },
-    { id: 'sueter', nombre: 'Súeter' },
-    { id: 'abrigo', nombre: 'Abrigos' }
+    { id: 'sueter', nombre: 'Súeter' }
 ];
 
 function Caballero() {
@@ -50,6 +51,7 @@ function Caballero() {
     const [viewMode, setViewMode] = useState<ViewMode>('double');
     const [sidebarVisible, setSidebarVisible] = useState(false);
     const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todos');
+    const [productosPopulares, setProductosPopulares] = useState<Producto[]>([]);
     
     const sidebarAnimation = useRef(new Animated.Value(-screenWidth * 0.8)).current;
     const overlayAnimation = useRef(new Animated.Value(0)).current;
@@ -70,11 +72,7 @@ function Caballero() {
             const data = await response.json();
             
             if (data.success) {
-                const productosPantalones = data.productos.filter((p: any) => 
-                    p.tipo === 'pantalon' || p.tipo === 'jeans'
-                );
-                
-                setProductos(productosPantalones.map((p: any) => ({
+                const todosProductos = data.productos.map((p: any) => ({
                     ...p,
                     precio: Number(p.precio),
                     stock: Number(p.stock),
@@ -83,8 +81,17 @@ function Caballero() {
                         p.imagenURL.startsWith('http') ? 
                             p.imagenURL : 
                             `${API_URL}uploads/productos/${p.imagenURL}`
-                        : null
-                })));
+                        : null,
+                    esPopular: Math.random() > 0.7
+                }));
+
+                const populares = [...todosProductos]
+                    .sort(() => 0.5 - Math.random())
+                    .slice(0, 6)
+                    .map(p => ({ ...p, categoria: 'popular' }));
+
+                setProductos(todosProductos);
+                setProductosPopulares(populares);
             } else {
                 throw new Error(data.message || 'Error al cargar productos');
             }
@@ -99,7 +106,7 @@ function Caballero() {
     const productosFiltrados = categoriaFiltro === 'todos' 
         ? productos 
         : categoriaFiltro === 'popular'
-        ? productos.filter(p => p.categoria === 'popular')
+        ? productosPopulares
         : productos.filter(p => p.categoria === categoriaFiltro);
 
     const fetchUserProfile = async () => {
@@ -173,6 +180,11 @@ function Caballero() {
 
     const renderProductoSingle = ({ item }: { item: Producto }) => (
         <ProductoContainer>
+            {item.esPopular && (
+                <PopularBadge>
+                    <PopularBadgeText>POPULAR</PopularBadgeText>
+                </PopularBadge>
+            )}
             <ProductoImageContainer>
                 {item.imagenURL ? (
                     <ProductoImage source={{ uri: item.imagenURL }} resizeMode="cover" />
@@ -217,6 +229,11 @@ function Caballero() {
 
     const renderProductoDouble = ({ item }: { item: Producto }) => (
         <ProductoContainerDouble>
+            {item.esPopular && (
+                <PopularBadgeDouble>
+                    <PopularBadgeText>POPULAR</PopularBadgeText>
+                </PopularBadgeDouble>
+            )}
             <ProductoImageContainerDouble>
                 {item.imagenURL ? (
                     <ProductoImage source={{ uri: item.imagenURL }} resizeMode="cover" />
@@ -394,11 +411,7 @@ function Caballero() {
     );
 }
 
-// Todos los estilos permanecen exactamente igual que en el código original
-// (GradientBackground, BlurredOverlay, Container, HeaderSection, etc.)
-
-export default Caballero;
-
+// Estilos base (se mantienen igual)
 const GradientBackground = styled(LinearGradient).attrs({
   colors: ['rgba(255, 235, 238, 0.9)', 'rgba(255, 245, 245, 0.9)'],
   start: { x: 0, y: 0 },
@@ -923,3 +936,32 @@ const CategoriaBadgeDouble = styled(View)<{ categoria: string }>`
         }
     }};
 `;
+
+// Nuevos estilos para el badge Popular
+const PopularBadge = styled(View)`
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background-color: #FFC107;
+    padding: 4px 8px;
+    border-radius: 12px;
+    z-index: 2;
+`;
+
+const PopularBadgeDouble = styled(View)`
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background-color: #FFC107;
+    padding: 3px 6px;
+    border-radius: 10px;
+    z-index: 2;
+`;
+
+const PopularBadgeText = styled(Text)`
+    font-size: 10px;
+    color: #000;
+    font-weight: bold;
+`;
+
+export default Caballero;
