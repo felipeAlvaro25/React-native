@@ -6,7 +6,7 @@ import { signOut } from 'firebase/auth';
 import { useEffect, useRef, useState } from 'react';
 import { Alert, Animated, Dimensions, FlatList, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { styled } from "styled-components/native";
-import { auth } from "../Firebase/firebaseconfig";
+import { auth } from '../../Firebase/firebaseconfig';
 
 // Tipos simplificados
 type AppRoute = "/(admin)";
