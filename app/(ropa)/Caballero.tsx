@@ -118,12 +118,146 @@ function Caballero() {
         fetchUserProfile();
     }, [categoriaFiltro]);
 
-
-    return (
-        // ... (your existing JSX return code)
-    );
-}
-
+return (
+    <>
+        <GradientBackground />
+        <BlurredOverlay />
+        <MainScrollView showsVerticalScrollIndicator={false}>
+            <Container>
+                <HeaderSection>
+                    <HeaderTopRow>
+                        <MenuButton onPress={openSidebar}>
+                            <MaterialIcons name="menu" size={28} color="white" />
+                        </MenuButton>
+                        <SignOutButton onPress={handleSignOut}>
+                            <ButtonText>Cerrar sesión</ButtonText>
+                            <AntDesign name="logout" size={18} color="white" style={{ marginLeft: 8 }} />
+                        </SignOutButton>
+                    </HeaderTopRow>
+                    <WelcomeText>
+                        ¡Bienvenido {userProfile?.nombre || auth.currentUser?.email}!
+                    </WelcomeText>
+                </HeaderSection>
+                
+                <SectionContainer>
+                    <SectionHeader>
+                        <Titulo>Ropa para Caballero</Titulo>
+                        
+                        <FilterScroll horizontal showsHorizontalScrollIndicator={false}>
+                            {categorias.map(cat => (
+                                <FilterButton
+                                    key={cat.id}
+                                    active={categoriaFiltro === cat.id}
+                                    onPress={() => setCategoriaFiltro(cat.id)}
+                                >
+                                    <FilterText active={categoriaFiltro === cat.id}>
+                                        {cat.nombre}
+                                    </FilterText>
+                                </FilterButton>
+                            ))}
+                        </FilterScroll>
+                        
+                        <ViewModeContainer>
+                            <ViewModeButton 
+                                active={viewMode === 'single'}
+                                onPress={() => setViewMode('single')}
+                            >
+                                <MaterialIcons 
+                                    name="view-agenda" 
+                                    size={18} 
+                                    color={viewMode === 'single' ? '#fff' : '#E53935'} 
+                                />
+                                <ViewModeText active={viewMode === 'single'}>
+                                    Una columna
+                                </ViewModeText>
+                            </ViewModeButton>
+                            
+                            <ViewModeButton 
+                                active={viewMode === 'double'}
+                                onPress={() => setViewMode('double')}
+                            >
+                                <MaterialIcons 
+                                    name="view-module" 
+                                    size={18} 
+                                    color={viewMode === 'double' ? '#fff' : '#E53935'} 
+                                />
+                                <ViewModeText active={viewMode === 'double'}>
+                                    Dos columnas
+                                </ViewModeText>
+                            </ViewModeButton>
+                        </ViewModeContainer>
+                    </SectionHeader>
+                    
+                    {loading ? (
+                        <LoadingContainer>
+                            <ActivityIndicator size="large" color="#E53935" />
+                            <LoadingText>Cargando productos...</LoadingText>
+                        </LoadingContainer>
+                    ) : productos.length > 0 ? (
+                        <ProductsList 
+                            data={categoriaFiltro === 'popular' ? productos.filter(p => p.esPopular) : 
+                                 categoriaFiltro === 'todos' ? productos : 
+                                 productos.filter(p => p.tipo === categoriaFiltro)}
+                            renderItem={viewMode === 'single' ? renderProductoSingle : renderProductoDouble}
+                            keyExtractor={(item) => item.id}
+                            numColumns={viewMode === 'double' ? 2 : 1}
+                            key={viewMode + categoriaFiltro}
+                            columnWrapperStyle={viewMode === 'double' ? { justifyContent: 'space-between' } : undefined}
+                            showsVerticalScrollIndicator={false}
+                        />
+                    ) : (
+                        <NoProductsContainer>
+                            <NoProductsText>No hay productos en esta categoría</NoProductsText>
+                            <MaterialIcons name="search-off" size={40} color="#E53935" />
+                        </NoProductsContainer>
+                    )}
+                </SectionContainer>
+                
+                <FooterContainer>
+                    <AntDesign name="gitlab" size={60} color="#E53935"/>
+                    <FooterText>Colección Caballero 2023</FooterText>
+                </FooterContainer>
+            </Container>
+        </MainScrollView>
+        
+        {sidebarVisible && (
+            <>
+                <SidebarOverlay 
+                    as={Animated.View}
+                    style={{ opacity: overlayAnimation }}
+                    onTouchEnd={closeSidebar}
+                    activeOpacity={1}
+                />
+                <SidebarContainer
+                    as={Animated.View}
+                    style={{
+                        transform: [{ translateX: sidebarAnimation }]
+                    }}
+                >
+                    <SidebarHeader>
+                        <SidebarCloseButton onPress={closeSidebar}>
+                            <MaterialIcons name="close" size={28} color="white" />
+                        </SidebarCloseButton>
+                        <SidebarTitle>Menú</SidebarTitle>
+                    </SidebarHeader>
+                    
+                    <SidebarContent>
+                        <SidebarMenuList 
+                            data={datarutas} 
+                            renderItem={renderItem} 
+                            keyExtractor={(item) => item.name}
+                            scrollEnabled={false}
+                        />
+                    </SidebarContent>
+                    
+                    <SidebarFooter>
+                        <AntDesign name="gitlab" size={40} color="white"/>
+                    </SidebarFooter>
+                </SidebarContainer>
+            </>
+        )}
+    </>
+);
 
 const GradientBackground = styled(LinearGradient).attrs({
   colors: ['rgba(255, 235, 238, 0.9)', 'rgba(255, 245, 245, 0.9)'],
