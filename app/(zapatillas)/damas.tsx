@@ -1,154 +1,97 @@
-import { Link, router } from "expo-router";
 import { AntDesign, Entypo, MaterialIcons } from "@expo/vector-icons";
-import { styled } from "styled-components/native";
-import { FlatList, Alert, Text, TouchableOpacity, View, Image, ActivityIndicator, Animated, Dimensions } from "react-native";
-import { auth } from '../../Firebase/firebaseconfig';
-import { signOut } from 'firebase/auth';
-import { useEffect, useState, useRef } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
+import { LinearGradient } from 'expo-linear-gradient';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, Text, TouchableOpacity, View } from "react-native";
+import { styled } from "styled-components/native";
+import { auth } from '../../Firebase/firebaseconfig';
 
-type AppRoute = "/(admin)" | "/(zapatillas)" | "/(ropa)" | "/(usuario)" | "/(reloj)";
-
+// Types
+type AppRoute = "/(admin)" | "/(zapatillas)" | "/(ropa)" | "/(reloj)";
 type Ruta = {
     name: string;
     href: AppRoute;
 };
-
-// Actualiza el tipo Producto para incluir todos los campos
 type Producto = {
     id: string;
     nombre: string;
     descripcion: string;
     precio: number;
     stock: number;
-    categoria: string;
-    imagenURL?: string;
+    categoria: 'deportiva' | 'jeans' | 'gala' | 'abrigo' | 'popular';
+    tipo: 'jeans' | 'abrigo' | 'sueter' | 'deportiva' | 'gala';
+    imagenURL?: string | null;
     color?: string;
     talla?: string;
-    tipo?: string;
-    status?: string;
-    comprados?: number;
+    esPopular: boolean;
     marca?: string;
 };
-
 type ViewMode = 'single' | 'double';
 
-// Configuración
-const ADMIN_EMAILS = [
-    'felipealvaro48@gmail.com',
-    'cesarapsricio@gmail.coml',  // Reemplaza con el primer correo adicional
-    'christoferj2002@gmail.com'   // Reemplaza con el segundo correo adicional
-];
-const API_URL = 'https://felipe25.alwaysdata.net/api/';
+// Constants
+const API_URL = 'https://felipe25.alwaysdata.net/api/ropa-caballero.php ';
 const { width: screenWidth } = Dimensions.get('window');
 
-function Inicio() {
+// Categorías del filtro
+const categorias = [
+    { id: 'todos', nombre: 'Todos' },
+    { id: 'popular', nombre: 'Popular' },
+    { id: 'jeans', nombre: 'Jeans' },
+    { id: 'abrigo', nombre: 'Abrigos' },
+    { id: 'sueter', nombre: 'Súeteres' },
+    { id: 'deportiva', nombre: 'Deportiva' },
+    { id: 'gala', nombre: 'Gala' }
+];
+
+export default function Caballero() {
     const [productos, setProductos] = useState<Producto[]>([]);
     const [loading, setLoading] = useState(true);
-    const [userProfile, setUserProfile] = useState<any>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('double');
     const [sidebarVisible, setSidebarVisible] = useState(false);
-    
-    // Animación para el sidebar
+    const [categoriaFiltro, setCategoriaFiltro] = useState<string>('todos');
+
+    // Animaciones
     const sidebarAnimation = useRef(new Animated.Value(-screenWidth * 0.8)).current;
     const overlayAnimation = useRef(new Animated.Value(0)).current;
 
+    // Menú lateral
     const datarutas: Ruta[] = [
         { name: "Zapatillas", href: "/(zapatillas)" },
         { name: "Ropa", href: "/(ropa)" },
         { name: "Reloj", href: "/(reloj)" },
         { name: "Admin", href: "/(admin)" },
     ];
-    
+
+    // Función para cargar productos desde el backend
     const cargarProductos = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_URL}zapatillas.php`);
-            if (!response.ok) throw new Error(`Error HTTP! estado: ${response.status}`);
-            
+            let url = `${API_URL}?categoria=caballero`;
+
+            if (categoriaFiltro === 'popular') {
+                url += '&popular=true&limit=6'; // Popular y máximo 6
+            } else if (categoriaFiltro !== 'todos') {
+                url += `&tipo=${categoriaFiltro}`;
+            }
+
+            const response = await fetch(url);
+            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
             const data = await response.json();
-            console.log('Datos de productos:', data); // Para depuración
-            
+
             if (data.success) {
-                setProductos(data.productos.map((p: any) => ({
-                    ...p,
-                    precio: Number(p.precio),
-                    stock: Number(p.stock),
-                    // Asegurar que la URL de imagen sea completa
-                    imagenURL: p.imagenURL ? 
-                        p.imagenURL.startsWith('http') ? 
-                            p.imagenURL : 
-                            `https://felipe25.alwaysdata.net/api/uploads/productos/${p.imagenURL}`
-                        : null
-                })));
+                setProductos(data.productos);
             } else {
-                throw new Error(data.message || 'Error al cargar productos');
+                throw new Error(data.message || 'Error loading products');
             }
         } catch (error) {
-            console.error("Error cargando productos:", error);
-            Alert.alert('Error', 'No se pudieron cargar los productos');
+            console.error("Error fetching products:", error);
+            Alert.alert('Error', 'No se pudieron cargar los productos.');
         } finally {
             setLoading(false);
         }
     };
 
-    const ProductImage = ({ uri, style }: { uri?: string | null, style?: any }) => {
-        const [imgError, setImgError] = useState(false);
-        
-        if (imgError || !uri) {
-            return (
-                <View style={[style, { justifyContent: 'center', alignItems: 'center', backgroundColor: '#f0f0f0' }]}>
-                    <MaterialIcons name="image" size={style?.width ? style.width/3 : 40} color="#ccc" />
-                </View>
-            );
-        }
-
-        return (
-            <Image
-                source={{ uri }}
-                style={style}
-                resizeMode="cover"
-                onError={() => {
-                    console.log('Error cargando imagen:', uri);
-                    setImgError(true);
-                }}
-            />
-        );
-    };
-
-    const handleAddToCart = (producto: Producto) => {
-        Alert.alert('Producto agregado', `Se agregó ${producto.nombre} al carrito`);
-        // Aquí puedes implementar la lógica para agregar al carrito
-    };
-
-    const handleBuyNow = (producto: Producto) => {
-        Alert.alert('Compra rápida', `Redirigiendo a compra de ${producto.nombre}`);
-        // Aquí puedes implementar la lógica para compra inmediata
-    };
-
-    // Función para obtener el perfil del usuario
-    const fetchUserProfile = async () => {
-        if (!auth.currentUser?.uid) return;
-        
-        try {
-            const response = await fetch(`${API_URL}users.php?uid=${auth.currentUser.uid}`);
-            const data = await response.json();
-            
-            if (data.success) {
-                setUserProfile(data.user);
-            }
-        } catch (error) {
-            console.error("Error obteniendo perfil:", error);
-        }
-    };
-
-    useEffect(() => {
-        cargarProductos();
-        fetchUserProfile();
-    }, []);
-
-    // Funciones para abrir y cerrar el sidebar
+    // Abrir menú lateral
     const openSidebar = () => {
         setSidebarVisible(true);
         Animated.parallel([
@@ -165,6 +108,7 @@ function Inicio() {
         ]).start();
     };
 
+    // Cerrar menú lateral
     const closeSidebar = () => {
         Animated.parallel([
             Animated.timing(sidebarAnimation, {
@@ -182,234 +126,150 @@ function Inicio() {
         });
     };
 
-    const renderItem = ({ item }: { item: Ruta }) => (
-        <Link href={item.href} asChild>
-            <SidebarLinkButton onPress={closeSidebar}>
-                <SidebarIconContainer>
-                    <Primero name="gitlab" size={24} />
-                </SidebarIconContainer>
-                <SidebarTextContainer>
-                    <SidebarTexto>{item.name}</SidebarTexto>
-                </SidebarTextContainer>
-                <SidebarIconContainer>
-                    <Flecha name="arrow-with-circle-right" size={20} />
-                </SidebarIconContainer>
-            </SidebarLinkButton>
-        </Link>
-    );
-
-    // Vista de un producto por fila (mejorada)
+    // Renderizar un producto en vista simple
     const renderProductoSingle = ({ item }: { item: Producto }) => (
         <ProductoContainer>
             <ProductoImageContainer>
-                <ProductImage 
-                    uri={item.imagenURL}
-                    style={{ width: '100%', height: '100%' }}
-                />
+                {item.imagenURL ? (
+                    <ProductoImage source={{ uri: item.imagenURL }} />
+                ) : (
+                    <PlaceholderImage><MaterialIcons name="image" size={30} color="white" /></PlaceholderImage>
+                )}
+                {item.esPopular && <PopularBadge><PopularBadgeText>POPULAR</PopularBadgeText></PopularBadge>}
             </ProductoImageContainer>
             <ProductoInfo>
                 <ProductoNombre>{item.nombre}</ProductoNombre>
-                
-                {item.categoria && (
-                    <ProductoCategoria>{item.categoria}</ProductoCategoria>
-                )}
-                
-                {item.marca && (
-                    <ProductoMarca>Marca: {item.marca}</ProductoMarca>
-                )}
-                
-                <ProductoDescripcion numberOfLines={3}>{item.descripcion}</ProductoDescripcion>
-                
-                {(item.color || item.talla) && (
-                    <ProductoAtributosContainer>
-                        {item.color && (
-                            <ProductoAtributo>
-                                <ProductoColorCircle color={item.color.toLowerCase()} />
-                                <ProductoAtributoText>{item.color}</ProductoAtributoText>
-                            </ProductoAtributo>
-                        )}
-                        {item.talla && (
-                            <ProductoAtributo>
-                                <MaterialIcons name="straighten" size={14} color="#666" />
-                                <ProductoAtributoText>{item.talla}</ProductoAtributoText>
-                            </ProductoAtributo>
-                        )}
-                    </ProductoAtributosContainer>
-                )}
-                
+                <ProductoDescripcion>{item.descripcion}</ProductoDescripcion>
                 <ProductoDetailsContainer>
                     <ProductoPrecio>${item.precio.toFixed(2)}</ProductoPrecio>
-                    <ProductoStock>Stock: {item.stock}</ProductoStock>
+                    <ProductoStock>{item.stock > 0 ? 'En stock' : 'Agotado'}</ProductoStock>
                 </ProductoDetailsContainer>
-                
-                <ProductoButtonsContainer>
-                    <AddToCartButton onPress={() => handleAddToCart(item)}>
-                        <AddToCartText>Agregar al carrito</AddToCartText>
-                    </AddToCartButton>
-                    <BuyNowButton onPress={() => handleBuyNow(item)}>
-                        <BuyNowText>Comprar ahora</BuyNowText>
-                    </BuyNowButton>
-                </ProductoButtonsContainer>
+                <CategoriaBadge categoria={item.tipo}>
+                    <CategoriaBadgeText>{item.tipo.toUpperCase()}</CategoriaBadgeText>
+                </CategoriaBadge>
             </ProductoInfo>
         </ProductoContainer>
     );
 
+    // Renderizar un producto en vista doble
     const renderProductoDouble = ({ item }: { item: Producto }) => (
         <ProductoContainerDouble>
             <ProductoImageContainerDouble>
-                <ProductImage 
-                    uri={item.imagenURL}
-                    style={{ width: '100%', height: '100%' }}
-                />
+                {item.imagenURL ? (
+                    <ProductoImage source={{ uri: item.imagenURL }} />
+                ) : (
+                    <PlaceholderImageDouble><MaterialIcons name="image" size={30} color="white" /></PlaceholderImageDouble>
+                )}
+                {item.esPopular && <PopularBadgeDouble><PopularBadgeText>POPULAR</PopularBadgeText></PopularBadgeDouble>}
             </ProductoImageContainerDouble>
             <ProductoInfoDouble>
-                <ProductoNombreDouble numberOfLines={2}>{item.nombre}</ProductoNombreDouble>
-                
-                {item.categoria && (
-                    <ProductoCategoriaDouble>{item.categoria}</ProductoCategoriaDouble>
-                )}
-                
+                <ProductoNombreDouble>{item.nombre}</ProductoNombreDouble>
                 <ProductoDescripcionDouble numberOfLines={2}>{item.descripcion}</ProductoDescripcionDouble>
-                
                 <ProductoDetailsContainerDouble>
                     <ProductoPrecioDouble>${item.precio.toFixed(2)}</ProductoPrecioDouble>
-                    <ProductoStockDouble>Stock: {item.stock}</ProductoStockDouble>
+                    <ProductoStockDouble>{item.stock > 0 ? 'En stock' : 'Agotado'}</ProductoStockDouble>
                 </ProductoDetailsContainerDouble>
-                
-                <ProductoButtonsContainerDouble>
-                    <AddToCartButtonDouble onPress={() => handleAddToCart(item)}>
-                        <MaterialIcons name="add-shopping-cart" size={16} color="white" />
-                    </AddToCartButtonDouble>
-                    <BuyNowButtonDouble onPress={() => handleBuyNow(item)}>
-                        <MaterialIcons name="flash-on" size={16} color="white" />
-                    </BuyNowButtonDouble>
-                </ProductoButtonsContainerDouble>
+                <CategoriaBadgeDouble categoria={item.tipo}>
+                    <PopularBadgeText>{item.tipo}</PopularBadgeText>
+                </CategoriaBadgeDouble>
             </ProductoInfoDouble>
         </ProductoContainerDouble>
     );
 
-    const handleSignOut = async () => {
-        try {
-            await signOut(auth);
-            setUserProfile(null);
-            Alert.alert('Éxito', 'Sesión cerrada correctamente');
-            router.replace('/');
-        } catch (error: any) {
-            Alert.alert('Error', error.message);
-        }
-    };
+    // Efecto para cargar productos al cambiar filtro
+    useEffect(() => {
+        cargarProductos();
+    }, [categoriaFiltro]);
 
-        return (
+    return (
         <>
+            {/* Background Gradient */}
             <GradientBackground />
-            <BlurredOverlay />
-            <MainContainer>
-                <MainScrollView showsVerticalScrollIndicator={false}>
-                    <Container>
-                        {/* Header Section con botón de menú */}
-                        <HeaderSection>
-                            <HeaderTopRow>
-                                <MenuButton onPress={openSidebar}>
-                                    <MaterialIcons name="menu" size={28} color="white" />
-                                </MenuButton>
-                                <SignOutButton onPress={handleSignOut}>
-                                    <ButtonText>Cerrar sesión</ButtonText>
-                                    <AntDesign name="logout" size={18} color="white" style={{ marginLeft: 8 }} />
-                                </SignOutButton>
-                            </HeaderTopRow>
-                            <WelcomeText>
-                                ¡Bienvenido {userProfile?.nombre || auth.currentUser?.email}!
-                            </WelcomeText>
-                        </HeaderSection>
-                        
-                        {/* Products Section */}
-                        <SectionContainer>
-                            <SectionHeader>
-                                <Titulo>Zapatillas Disponibles</Titulo>
-                                <ViewModeContainer>
-                                    <ViewModeButton 
-                                        active={viewMode === 'single'}
-                                        onPress={() => setViewMode('single')}
-                                    >
-                                        <MaterialIcons 
-                                            name="view-agenda" 
-                                            size={18} 
-                                            color={viewMode === 'single' ? '#fff' : '#666'} 
-                                        />
-                                        <ViewModeText active={viewMode === 'single'}>
-                                            Una columna
-                                        </ViewModeText>
-                                    </ViewModeButton>
-                                    
-                                    <ViewModeButton 
-                                        active={viewMode === 'double'}
-                                        onPress={() => setViewMode('double')}
-                                    >
-                                        <MaterialIcons 
-                                            name="view-module" 
-                                            size={18} 
-                                            color={viewMode === 'double' ? '#fff' : '#666'} 
-                                        />
-                                        <ViewModeText active={viewMode === 'double'}>
-                                            Dos columnas
-                                        </ViewModeText>
-                                    </ViewModeButton>
-                                </ViewModeContainer>
-                            </SectionHeader>
-                            
-                            {loading ? (
-                                <LoadingContainer>
-                                    <ActivityIndicator size="large" color="#ffffff" />
-                                    <LoadingText>Cargando productos...</LoadingText>
-                                </LoadingContainer>
-                            ) : productos.length > 0 ? (
-                                <ProductsList 
-                                    data={productos}
-                                    renderItem={viewMode === 'single' ? renderProductoSingle : renderProductoDouble}
-                                    keyExtractor={(item) => item.id.toString()}
-                                    numColumns={viewMode === 'double' ? 2 : 1}
-                                    key={viewMode}
-                                    columnWrapperStyle={viewMode === 'double' ? { justifyContent: 'space-between' } : undefined}
-                                    showsVerticalScrollIndicator={false}
-                                    scrollEnabled={false}
-                                />
-                            ) : (
-                                <NoProductsText>No hay productos disponibles</NoProductsText>
-                            )}
-                        </SectionContainer>
-                        
-                        {/* Footer */}
-                        <FooterContainer>
-                            <AntDesign name="gitlab" size={60} color="#E24329"/>
-                        </FooterContainer>
-                    </Container>
-                </MainScrollView>
-                
-                {/* Barra de navegación inferior */}
-                <BottomTabBar>
-                    <TabButton onPress={() => {}}>
-                        <MaterialIcons name="home" size={24} color="#fff" />
-                        <TabButtonText>Inicio</TabButtonText>
-                    </TabButton>
-                    
-                    <TabButton onPress={() => {}}>
-                        <MaterialIcons name="person" size={24} color="#fff" />
-                        <TabButtonText>Perfil</TabButtonText>
-                    </TabButton>
-                    
-                    <TabButton onPress={() => {}}>
-                        <MaterialIcons name="search" size={24} color="#fff" />
-                        <TabButtonText>Buscar</TabButtonText>
-                    </TabButton>
-                    
-                    <TabButton onPress={() => {}}>
-                        <MaterialIcons name="shopping-cart" size={24} color="#fff" />
-                        <TabButtonText>Carrito</TabButtonText>
-                    </TabButton>
-                </BottomTabBar>
-            </MainContainer>
 
-            {/* Sidebar Overlay y Sidebar */}
+            {/* Blurred Overlay */}
+            <BlurredOverlay />
+
+            {/* Main Content */}
+            <MainScrollView showsVerticalScrollIndicator={false}>
+                <Container>
+                    <HeaderSection>
+                        <HeaderTopRow>
+                            <MenuButton onPress={openSidebar}>
+                                <MaterialIcons name="menu" size={28} color="white" />
+                            </MenuButton>
+                            <SignOutButton onPress={() => auth.signOut()}>
+                                <ButtonText>Cerrar sesión</ButtonText>
+                                <AntDesign name="logout" size={18} color="white" style={{ marginLeft: 8 }} />
+                            </SignOutButton>
+                        </HeaderTopRow>
+                        <WelcomeText>¡Bienvenido!</WelcomeText>
+                    </HeaderSection>
+
+                    <SectionContainer>
+                        <SectionHeader>
+                            <Titulo>Ropa para Caballero</Titulo>
+                            <FilterScroll horizontal showsHorizontalScrollIndicator={false}>
+                                {categorias.map(cat => (
+                                    <FilterButton
+                                        key={cat.id}
+                                        active={categoriaFiltro === cat.id}
+                                        onPress={() => setCategoriaFiltro(cat.id)}
+                                    >
+                                        <FilterText active={categoriaFiltro === cat.id}>
+                                            {cat.nombre}
+                                        </FilterText>
+                                    </FilterButton>
+                                ))}
+                            </FilterScroll>
+                            <ViewModeContainer>
+                                <ViewModeButton 
+                                    active={viewMode === 'single'}
+                                    onPress={() => setViewMode('single')}
+                                >
+                                    <MaterialIcons name="view-agenda" size={18} color={viewMode === 'single' ? '#fff' : '#E53935'} />
+                                    <ViewModeText active={viewMode === 'single'}>Una columna</ViewModeText>
+                                </ViewModeButton>
+                                <ViewModeButton 
+                                    active={viewMode === 'double'}
+                                    onPress={() => setViewMode('double')}
+                                >
+                                    <MaterialIcons name="view-module" size={18} color={viewMode === 'double' ? '#fff' : '#E53935'} />
+                                    <ViewModeText active={viewMode === 'double'}>Dos columnas</ViewModeText>
+                                </ViewModeButton>
+                            </ViewModeContainer>
+                        </SectionHeader>
+
+                        {loading ? (
+                            <LoadingContainer>
+                                <ActivityIndicator size="large" color="#E53935" />
+                                <LoadingText>Cargando productos...</LoadingText>
+                            </LoadingContainer>
+                        ) : productos.length > 0 ? (
+                            <ProductsList 
+                                data={productos}
+                                renderItem={viewMode === 'single' ? renderProductoSingle : renderProductoDouble}
+                                keyExtractor={(item) => item.id}
+                                numColumns={viewMode === 'double' ? 2 : 1}
+                                key={viewMode + categoriaFiltro}
+                                columnWrapperStyle={viewMode === 'double' ? { justifyContent: 'space-between' } : undefined}
+                                showsVerticalScrollIndicator={false}
+                            />
+                        ) : (
+                            <NoProductsContainer>
+                                <NoProductsText>No hay productos disponibles</NoProductsText>
+                                <MaterialIcons name="search-off" size={40} color="#E53935" />
+                            </NoProductsContainer>
+                        )}
+                    </SectionContainer>
+
+                    <FooterContainer>
+                        <AntDesign name="gitlab" size={60} color="#E53935"/>
+                        <FooterText>Colección Caballero 2023</FooterText>
+                    </FooterContainer>
+                </Container>
+            </MainScrollView>
+
+            {/* Sidebar */}
             {sidebarVisible && (
                 <>
                     <SidebarOverlay 
@@ -430,19 +290,26 @@ function Inicio() {
                             </SidebarCloseButton>
                             <SidebarTitle>Menú</SidebarTitle>
                         </SidebarHeader>
-                        
                         <SidebarContent>
-                            
                             <SidebarMenuList 
                                 data={datarutas} 
-                                renderItem={renderItem} 
+                                renderItem={({ item }) => (
+                                    <SidebarLinkButton onPress={() => {}}>
+                                        <SidebarIconContainer>
+                                            <MaterialIcons name="shopping-bag" size={24} color="white" />
+                                        </SidebarIconContainer>
+                                        <SidebarTextContainer>
+                                            <SidebarTexto>{item.name}</SidebarTexto>
+                                        </SidebarTextContainer>
+                                        <Flecha name="chevron-right" size={20} />
+                                    </SidebarLinkButton>
+                                )}
                                 keyExtractor={(item) => item.name}
                                 scrollEnabled={false}
                             />
                         </SidebarContent>
-                        
                         <SidebarFooter>
-                            <AntDesign name="gitlab" size={40} color="#E24329"/>
+                            <AntDesign name="gitlab" size={40} color="white"/>
                         </SidebarFooter>
                     </SidebarContainer>
                 </>
@@ -450,7 +317,6 @@ function Inicio() {
         </>
     );
 }
-export default Inicio; // Agregar esta línea al final del archivo
 
 const ProductoCategoria = styled(Text)`
     font-size: 12px;
