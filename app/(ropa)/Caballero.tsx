@@ -66,10 +66,11 @@ export default function Caballero() {
     const cargarProductos = async () => {
         setLoading(true);
         try {
-            let url = `${API_URL}?categoria=Caballero`;
+            let url = `${API_URL}?categoria=ropa&sexo=Caballero`;
+
 
             if (categoriaFiltro === 'Popular') {
-                url += '&opular=true&limit=6'; // Popular y máximo 6
+                url += '&popular=true&limit=6'; // Popular y máximo 6
             } else if (categoriaFiltro !== 'todos') {
                 url += `&tipo=${categoriaFiltro}`;
             }
