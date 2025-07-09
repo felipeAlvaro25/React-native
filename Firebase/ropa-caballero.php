@@ -96,4 +96,8 @@ try {
     if (isset($conn)) $conn->close();
     echo json_encode($response, JSON_UNESCAPED_UNICODE);
 }
+<<<<<<< HEAD
 ?>
+=======
+?>
+>>>>>>> 6a89ffad85fcefafa33632e2afc8e2e6ae65c408

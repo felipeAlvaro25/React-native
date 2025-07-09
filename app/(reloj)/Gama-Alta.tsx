@@ -1,15 +1,12 @@
-import { Link, router } from "expo-router";
 import { AntDesign, Entypo, MaterialIcons } from "@expo/vector-icons";
-import { styled } from "styled-components/native";
-import { FlatList, Alert, Text, TouchableOpacity, View, Image, ActivityIndicator, Animated, Dimensions } from "react-native";
-import { auth } from '../../Firebase/firebaseconfig';
-import { signOut } from 'firebase/auth';
-import { useEffect, useState, useRef } from 'react';
-import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
-import { useCart } from '../Contexts/CartContext';
-import type { CartItem } from '../Contexts/CartContext';
-
+import { LinearGradient } from 'expo-linear-gradient';
+import { Link, router } from "expo-router";
+import { signOut } from 'firebase/auth';
+import { useEffect, useRef, useState } from 'react';
+import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, Image, Text, TouchableOpacity, View } from "react-native";
+import { styled } from "styled-components/native";
+import { auth } from '../../Firebase/firebaseconfig';
 
 type AppRoute = "/(admin)" | "/(zapatillas)" | "/(ropa)" | "/(usuario)" | "/(reloj)";
 
@@ -52,13 +49,10 @@ function Inicio() {
     const [userProfile, setUserProfile] = useState<any>(null);
     const [viewMode, setViewMode] = useState<ViewMode>('double');
     const [sidebarVisible, setSidebarVisible] = useState(false);
-
-        // Animaciones
+    
+    // Animación para el sidebar
     const sidebarAnimation = useRef(new Animated.Value(-screenWidth * 0.8)).current;
     const overlayAnimation = useRef(new Animated.Value(0)).current;
-    const scaleAnim = useRef(new Animated.Value(1)).current; // Declaración añadida
-    
-    const { state, addItem } = useCart();
 
     const datarutas: Ruta[] = [
         { name: "Zapatillas", href: "/(zapatillas)" },
@@ -67,62 +61,10 @@ function Inicio() {
         { name: "Admin", href: "/(admin)" },
     ];
     
-
-    const animateAddToCart = () => {
-    scaleAnim.setValue(0.8);
-    Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 3,
-        useNativeDriver: true,
-    }).start();
-    };
-
-    
-
-    const handleAddToCart = (producto: Producto) => {
-    console.log('Intentando agregar producto:', producto);
-    
-    const cartItem = {
-        id: producto.id,
-        nombre: producto.nombre,
-        precio: producto.precio,
-        imagenURL: producto.imagenURL,
-        stock: producto.stock,
-        categoria: producto.categoria,
-        color: producto.color,
-        talla: producto.talla,
-        marca: producto.marca
-    };
-    
-    addItem(cartItem);
-    animateAddToCart();
-    
-    // Verificación inmediata del estado
-    console.log('Estado actual del carrito:', state);
-    };
-
-    const handleBuyNow = (producto: Producto) => {
-        const cartItem: Omit<CartItem, 'cantidad'> = {
-            id: producto.id,
-            nombre: producto.nombre,
-            precio: producto.precio,
-            imagenURL: producto.imagenURL,
-            stock: producto.stock,
-            categoria: producto.categoria,
-            color: producto.color,
-            talla: producto.talla,
-            marca: producto.marca
-        };
-        
-        addItem(cartItem);
-        router.navigate('/carrito');
-        Alert.alert('Producto listo', `Puedes proceder al pago de ${producto.nombre}`);
-    };
-
     const cargarProductos = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`${API_URL}zapatillas_dama.php`);
+            const response = await fetch(`${API_URL}reloj.php`);
             if (!response.ok) throw new Error(`Error HTTP! estado: ${response.status}`);
             
             const data = await response.json();
@@ -173,6 +115,16 @@ function Inicio() {
                 }}
             />
         );
+    };
+
+    const handleAddToCart = (producto: Producto) => {
+        Alert.alert('Producto agregado', `Se agregó ${producto.nombre} al carrito`);
+        // Aquí puedes implementar la lógica para agregar al carrito
+    };
+
+    const handleBuyNow = (producto: Producto) => {
+        Alert.alert('Compra rápida', `Redirigiendo a compra de ${producto.nombre}`);
+        // Aquí puedes implementar la lógica para compra inmediata
     };
 
     // Función para obtener el perfil del usuario
@@ -246,6 +198,7 @@ function Inicio() {
         </Link>
     );
 
+    // Vista de un producto por fila (mejorada)
     const renderProductoSingle = ({ item }: { item: Producto }) => (
         <ProductoContainer>
             <ProductoImageContainer>
@@ -290,18 +243,12 @@ function Inicio() {
                 </ProductoDetailsContainer>
                 
                 <ProductoButtonsContainer>
-                    <TouchableOpacity 
-                        onPress={() => handleAddToCart(item)}
-                        style={[styles.addToCartButton, { transform: [{ scale: scaleAnim }] }]}
-                    >
+                    <AddToCartButton onPress={() => handleAddToCart(item)}>
                         <AddToCartText>Agregar al carrito</AddToCartText>
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                        onPress={() => handleBuyNow(item)}
-                        style={styles.buyNowButton}
-                    >
+                    </AddToCartButton>
+                    <BuyNowButton onPress={() => handleBuyNow(item)}>
                         <BuyNowText>Comprar ahora</BuyNowText>
-                    </TouchableOpacity>
+                    </BuyNowButton>
                 </ProductoButtonsContainer>
             </ProductoInfo>
         </ProductoContainer>
@@ -330,18 +277,12 @@ function Inicio() {
                 </ProductoDetailsContainerDouble>
                 
                 <ProductoButtonsContainerDouble>
-                    <TouchableOpacity 
-                        onPress={() => handleAddToCart(item)}
-                        style={[styles.addToCartButtonDouble, { transform: [{ scale: scaleAnim }] }]}
-                    >
+                    <AddToCartButtonDouble onPress={() => handleAddToCart(item)}>
                         <MaterialIcons name="add-shopping-cart" size={16} color="white" />
-                    </TouchableOpacity>
-                    <TouchableOpacity 
-                        onPress={() => handleBuyNow(item)}
-                        style={styles.buyNowButtonDouble}
-                    >
+                    </AddToCartButtonDouble>
+                    <BuyNowButtonDouble onPress={() => handleBuyNow(item)}>
                         <MaterialIcons name="flash-on" size={16} color="white" />
-                    </TouchableOpacity>
+                    </BuyNowButtonDouble>
                 </ProductoButtonsContainerDouble>
             </ProductoInfoDouble>
         </ProductoContainerDouble>
@@ -357,6 +298,7 @@ function Inicio() {
             Alert.alert('Error', error.message);
         }
     };
+
         return (
         <>
             <GradientBackground />
@@ -383,7 +325,7 @@ function Inicio() {
                         {/* Products Section */}
                         <SectionContainer>
                             <SectionHeader>
-                                <Titulo>Zapatillas de caballeros Disponibles</Titulo>
+                                <Titulo>Relojes Gama Alta  Disponibles</Titulo>
                                 <ViewModeContainer>
                                     <ViewModeButton 
                                         active={viewMode === 'single'}
@@ -445,46 +387,23 @@ function Inicio() {
                 
                 {/* Barra de navegación inferior */}
                 <BottomTabBar>
-                    {/* Botón de Inicio */}
-                    <TabButton onPress={() => { router.navigate('/'); }}>
-                    <MaterialIcons name="home" size={24} color="#fff" />
-                    <TabButtonText>Inicio</TabButtonText>
+                    <TabButton onPress={() => {}}>
+                        <MaterialIcons name="home" size={24} color="#fff" />
+                        <TabButtonText>Inicio</TabButtonText>
                     </TabButton>
-
-                    {/* Botón de Perfil */}
-                    <TabButton onPress={() => { router.navigate('/perfil'); }}> {/* Asume una ruta /profile para el perfil */}
-                    <MaterialIcons name="person" size={24} color="#fff" />
-                    <TabButtonText>Perfil</TabButtonText>
+                    
+                    <TabButton onPress={() => {}}>
+                        <MaterialIcons name="person" size={24} color="#fff" />
+                        <TabButtonText>Perfil</TabButtonText>
                     </TabButton>
-
-                    {/* Botón de Buscar */}
-                    <TabButton onPress={() => { router.navigate('/historial'); }}> {/* Asume una ruta /search para buscar */}
-                    <MaterialIcons name="search" size={24} color="#fff" />
-                    <TabButtonText>historial</TabButtonText>
+                    
+                    <TabButton onPress={() => {}}>
+                        <MaterialIcons name="search" size={24} color="#fff" />
+                        <TabButtonText>Buscar</TabButtonText>
                     </TabButton>
-
-                    {/* Botón de Carrito */}
-                    <TabButton onPress={() => router.navigate('/carrito')}>
-                        <View style={{ position: 'relative' }}>
-                            <MaterialIcons name="shopping-cart" size={24} color="#fff" />
-                            {state.itemCount > 0 && (
-                                <View style={{
-                                    position: 'absolute',
-                                    right: -8,
-                                    top: -4,
-                                    backgroundColor: '#E24329',
-                                    borderRadius: 10,
-                                    width: 18,
-                                    height: 18,
-                                    justifyContent: 'center',
-                                    alignItems: 'center'
-                                }}>
-                                    <Text style={{ color: 'white', fontSize: 10, fontWeight: 'bold' }}>
-                                        {state.itemCount > 9 ? '9+' : state.itemCount}
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
+                    
+                    <TabButton onPress={() => {}}>
+                        <MaterialIcons name="shopping-cart" size={24} color="#fff" />
                         <TabButtonText>Carrito</TabButtonText>
                     </TabButton>
                 </BottomTabBar>
@@ -535,8 +454,8 @@ export default Inicio; // Agregar esta línea al final del archivo
 
 const ProductoCategoria = styled(Text)`
     font-size: 12px;
-    color: #666;
-    background-color: #f0f0f0;
+    color: #6b4c1d;
+    background-color: #f9f3e7;
     padding: 2px 8px;
     border-radius: 10px;
     align-self: flex-start;
@@ -545,21 +464,21 @@ const ProductoCategoria = styled(Text)`
 
 const ProductoCategoriaDouble = styled(Text)`
     font-size: 10px;
-    color: #666;
-    background-color: #f0f0f0;
+    color: #6b4c1d;
+    background-color: #f9f3e7;
     padding: 2px 6px;
     border-radius: 8px;
     align-self: flex-start;
     margin-bottom: 4px;
 `;
 
-
 const ProductoMarca = styled(Text)`
     font-size: 12px;
-    color: #555;
+    color: #7f5e1f;
     margin-bottom: 5px;
 `;
 
+// Atributos del producto
 const ProductoAtributosContainer = styled(View)`
     flex-direction: row;
     margin-vertical: 5px;
@@ -571,14 +490,14 @@ const ProductoAtributo = styled(View)`
     align-items: center;
     margin-right: 10px;
     margin-bottom: 5px;
-    background-color: #f5f5f5;
+    background-color: #fef7e0;
     padding: 3px 8px;
     border-radius: 10px;
 `;
 
 const ProductoAtributoText = styled(Text)`
     font-size: 12px;
-    color: #666;
+    color: #6b4c1d;
     margin-left: 4px;
 `;
 
@@ -587,16 +506,16 @@ const ProductoColorCircle = styled(View)<{ color: string }>`
     height: 14px;
     border-radius: 7px;
     background-color: ${props => props.color};
-    border: 1px solid #ddd;
+    border: 1px solid #bfa46f;
 `;
 
-// Contenedor con degradado
+// Degradado de fondo principal
 const GradientBackground = styled(LinearGradient).attrs({
   colors: [
-  'rgba(80, 20, 20, 0.8)',   // rojo quemado
-  'rgba(0, 0, 0, 0.85)',  // carbón
-  'rgba(67, 29, 29, 0.9)',      // negro lava
-'rgba(67, 55, 29, 0.9)'       // negro lava
+    'rgba(181, 138, 33, 0.85)',
+    'rgba(101, 67, 33, 0.85)',
+    'rgba(170, 140, 60, 0.9)',
+    'rgba(210, 180, 100, 0.9)'
   ],
   start: { x: 0, y: 0 },
   end: { x: 1, y: 1 },
@@ -607,10 +526,10 @@ const GradientBackground = styled(LinearGradient).attrs({
   height: 100%;
 `;
 
-// Capa de blur encima del degradado
+// Blur encima del degradado
 const BlurredOverlay = styled(BlurView).attrs({
   intensity: 40,
-  tint: 'default', // o 'dark' si el fondo queda claro
+  tint: 'default',
 })`
   flex: 1;
   position: absolute;
@@ -625,15 +544,17 @@ const MainScrollView = styled.ScrollView`
     margin-bottom: 60px;
 `;
 
+// Contenedor general
 const Container = styled(View)`
     flex: 1;
     padding-bottom: 5px;
 `;
 
+// Header y top bar
 const HeaderSection = styled(View)`
     padding: 20px;
     padding-top: 40px;
-    background-color: rgba(26, 3, 51, 0.57);
+    background-color: rgba(121, 85, 28, 0.57);
 `;
 
 const HeaderTopRow = styled(View)`
@@ -646,9 +567,10 @@ const HeaderTopRow = styled(View)`
 const MenuButton = styled(TouchableOpacity)`
     padding: 8px;
     border-radius: 8px;
-    background-color: rgba(0, 0, 0, 0.2);
+    background-color: rgba(101, 67, 33, 0.2);
 `;
 
+// Sección general
 const SectionContainer = styled(View)`
     padding: 20px;
 `;
@@ -660,13 +582,14 @@ const SectionHeader = styled(View)`
 
 const WelcomeText = styled(Text)`
     font-size: 18px;
-    color: white;
+    color: #bfa46f;
     font-weight: 600;
     text-align: center;
 `;
 
+// Botón cerrar sesión
 const SignOutButton = styled(TouchableOpacity)`
-    background-color: #d32f2f;
+    background-color: #a65e00;
     padding: 12px 20px;
     border-radius: 25px;
     flex-direction: row;
@@ -682,17 +605,19 @@ const ButtonText = styled(Text)`
     font-size: 16px;
 `;
 
+// Títulos
 const Titulo = styled(Text)`
     font-size: 24px;
     font-weight: bold;
     margin-bottom: 15px;
-    color: rgba(3, 7, 7, 0.8);
+    color: rgba(89, 54, 14, 0.9);
     text-align: center;
 `;
 
+// Contenedor para modo vista
 const ViewModeContainer = styled(View)`
     flex-direction: row;
-    background-color: rgba(255, 255, 255, 0.2);
+    background-color: rgba(255, 243, 208, 0.3);
     border-radius: 20px;
     padding: 4px;
     margin-bottom: 15px;
@@ -703,18 +628,18 @@ const ViewModeButton = styled(TouchableOpacity)<{ active: boolean }>`
     align-items: center;
     padding: 10px 16px;
     border-radius: 18px;
-    background-color: ${props => props.active ? 'rgba(0, 0, 0, 0.8)' : 'transparent'};
+    background-color: ${props => props.active ? 'rgba(181, 138, 33, 0.9)' : 'transparent'};
     margin: 0 2px;
 `;
 
 const ViewModeText = styled(Text)<{ active: boolean }>`
-    color: ${props => props.active ? '#fff' : '#666'};
+    color: ${props => props.active ? '#fff8dc' : '#8b6e2f'};
     font-weight: ${props => props.active ? '600' : '400'};
     margin-left: 6px;
     font-size: 13px;
 `;
 
-// Estilos del Sidebar
+// Sidebar
 const SidebarOverlay = styled(TouchableOpacity)`
     position: absolute;
     top: 0;
@@ -731,7 +656,7 @@ const SidebarContainer = styled(View)`
     left: 0;
     bottom: 0;
     width: ${screenWidth * 0.8}px;
-    background-color: rgba(26, 3, 51, 0.92);
+    background-color: rgba(101, 67, 33, 0.92);
     z-index: 1001;
     shadow-color: #000;
     shadow-offset: 2px 0px;
@@ -745,9 +670,9 @@ const SidebarHeader = styled(View)`
     align-items: center;
     padding: 20px;
     padding-top: 50px;
-    background-color: rgba(26, 3, 51, 0.57);
+    background-color: rgba(121, 85, 28, 0.57);
     border-bottom-width: 5px;
-    border-bottom-color: rgb(138, 8, 8);
+    border-bottom-color: rgb(181, 138, 33);
 `;
 
 const SidebarCloseButton = styled(TouchableOpacity)`
@@ -758,7 +683,7 @@ const SidebarCloseButton = styled(TouchableOpacity)`
 const SidebarTitle = styled(Text)`
     font-size: 24px;
     font-weight: bold;
-    color: white;
+    color: #f5deb3;
 `;
 
 const SidebarContent = styled(View)`
@@ -771,20 +696,18 @@ const SidebarFooter = styled(View)`
     justify-content: center;
     padding: 20px;
     border-top-width: 1px;
-    border-top-color: rgba(255, 255, 255, 0.2);
+    border-top-color: rgba(245, 222, 179, 0.2);
 `;
 
-// Botones del sidebar
 const SidebarLinkButton = styled(TouchableOpacity)`
     flex-direction: row;
     align-items: center;
     padding: 16px;
     margin-bottom: 12px;
     border-radius: 12px;
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(245, 222, 179, 0.15);
     height: 60px;
 `;
-
 
 const SidebarIconContainer = styled(View)`
     width: 40px;
@@ -803,7 +726,7 @@ const SidebarTexto = styled(Text)`
     font-size: 16px;
     font-weight: 600;
     text-transform: capitalize;
-    color: white;
+    color: #f5deb3;
 `;
 
 const SidebarMenuList = styled(FlatList)`
@@ -811,15 +734,16 @@ const SidebarMenuList = styled(FlatList)`
 `;
 
 const Flecha = styled(Entypo)`
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(245, 222, 179, 0.8);
 `;
 
 const Primero = styled(AntDesign)`
-    color: rgba(239, 16, 16, 0.88);
+    color: rgba(181, 138, 33, 0.88);
 `;
 
+// Producto - vista simple
 const ProductoContainer = styled(LinearGradient).attrs({
-  colors: ['rgba(123, 142, 138, 0.85)', 'rgba(64, 28, 75, 0.85)'], // tus dos colores
+  colors: ['rgba(210, 180, 100, 0.85)', 'rgba(140, 110, 40, 0.85)'],
   start: { x: 0, y: 0 },
   end: { x: 1, y: 1 },
 })`
@@ -839,7 +763,7 @@ const ProductoImageContainer = styled(View)`
     width: 120px;
     height: 120px;
     margin-right: 16px;
-    background-color: #f5f5f5;
+    background-color: #fdf7e3;
     border-radius: 10px;
     overflow: hidden;
 `;
@@ -853,13 +777,13 @@ const ProductoInfo = styled(View)`
 const ProductoNombre = styled(Text)`
     font-size: 17px;
     font-weight: bold;
-    color: #333;
+    color: #6b4c1d;
     line-height: 22px;
 `;
 
 const ProductoDescripcion = styled(Text)`
     font-size: 14px;
-    color: #666;
+    color: #9a7e31;
     line-height: 18px;
     margin-vertical: 8px;
 `;
@@ -874,21 +798,21 @@ const ProductoDetailsContainer = styled(View)`
 const ProductoPrecio = styled(Text)`
     font-size: 18px;
     font-weight: bold;
-    color: #E24329;
+    color: #b8860b;
 `;
 
 const ProductoStock = styled(Text)`
     font-size: 13px;
-    color: #4CAF50;
+    color: #558b2f;
     font-weight: 500;
-    background-color: #E8F5E8;
+    background-color: #f0e68c;
     padding: 4px 8px;
     border-radius: 12px;
 `;
 
-// Estilos mejorados para productos - Vista double
+// Producto - vista doble
 const ProductoContainerDouble = styled(View)`
-    background-color:rgba(63, 43, 150, 0.29);
+    background-color:rgba(186, 152, 77, 0.29);
     border-radius: 12px;
     padding: 12px;
     margin-bottom: 12px;
@@ -901,12 +825,11 @@ const ProductoContainerDouble = styled(View)`
     min-height: 350px;
 `;
 
-
 const ProductoImageContainerDouble = styled(View)`
     width: 100%;
     height: 150px;
     margin-bottom: 12px;
-    background-color: #f5f5f5;
+    background-color: #f9f3e7;
     border-radius: 8px;
     overflow: hidden;
 `;
@@ -919,14 +842,14 @@ const ProductoInfoDouble = styled(View)`
 const ProductoNombreDouble = styled(Text)`
     font-size: 14px;
     font-weight: bold;
-    color: #333;
+    color: #6b4c1d;
     margin-bottom: 6px;
     line-height: 18px;
 `;
 
 const ProductoDescripcionDouble = styled(Text)`
     font-size: 12px;
-    color: #666;
+    color: #9a7e31;
     margin-bottom: 8px;
     line-height: 16px;
 `;
@@ -938,25 +861,26 @@ const ProductoDetailsContainerDouble = styled(View)`
 const ProductoPrecioDouble = styled(Text)`
     font-size: 16px;
     font-weight: bold;
-    color: #E24329;
+    color: #b8860b;
     margin-bottom: 4px;
 `;
 
-
 const ProductoStockDouble = styled(Text)`
     font-size: 11px;
-    color: #4CAF50;
+    color: #558b2f;
     font-weight: 500;
-    background-color: #E8F5E8;
+    background-color: #f0e68c;
     padding: 3px 6px;
     border-radius: 10px;
     align-self: flex-start;
 `;
 
+// Lista de productos
 const ProductsList = styled(FlatList)`
     flex-grow: 0;
 `;
 
+// Contenedor para carga y textos
 const LoadingContainer = styled(View)`
     align-items: center;
     justify-content: center;
@@ -982,53 +906,32 @@ const FooterContainer = styled(View)`
     padding: 20px;
 `;
 
-// Estilos para los botones (vista single)
+// Botones (vista single)
 const ProductoButtonsContainer = styled(View)`
     flex-direction: row;
     justify-content: space-between;
     margin-top: 10px;
-    z-index: 2;
 `;
 
+const AddToCartButton = styled(TouchableOpacity)`
+    background-color: #a67c00;
+    padding: 10px 15px;
+    border-radius: 8px;
+    flex: 1;
+    margin-right: 8px;
+    align-items: center;
+    justify-content: center;
+`;
 
-const styles = {
-  addToCartButton: {
-    backgroundColor: '#4CAF50',
-    padding: 10,
-    borderRadius: 8,
-    flex: 1,
-    marginRight: 8,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  buyNowButton: {
-    backgroundColor: '#E24329',
-    padding: 10,
-    borderRadius: 8,
-    flex: 1,
-    marginLeft: 8,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  addToCartButtonDouble: {
-    backgroundColor: '#4CAF50',
-    padding: 8,
-    borderRadius: 6,
-    flex: 1,
-    marginRight: 4,
-    alignItems: 'center',
-    justifyContent: 'center'
-  },
-  buyNowButtonDouble: {
-    backgroundColor: '#E24329',
-    padding: 8,
-    borderRadius: 6,
-    flex: 1,
-    marginLeft: 4,
-    alignItems: 'center',
-    justifyContent: 'center'
-  }
-};
+const BuyNowButton = styled(TouchableOpacity)`
+    background-color: #b8860b;
+    padding: 10px 15px;
+    border-radius: 8px;
+    flex: 1;
+    margin-left: 8px;
+    align-items: center;
+    justify-content: center;
+`;
 
 const AddToCartText = styled(Text)`
     color: white;
@@ -1042,26 +945,47 @@ const BuyNowText = styled(Text)`
     font-size: 14px;
 `;
 
-// Estilos para los botones (vista double)
+// Botones (vista double)
 const ProductoButtonsContainerDouble = styled(View)`
     flex-direction: row;
     justify-content: space-between;
     margin-top: 10px;
-    z-index: 2;
 `;
 
+const AddToCartButtonDouble = styled(TouchableOpacity)`
+    background-color: #a67c00;
+    padding: 8px;
+    border-radius: 6px;
+    flex: 1;
+    margin-right: 4px;
+    align-items: center;
+    justify-content: center;
+`;
+
+const BuyNowButtonDouble = styled(TouchableOpacity)`
+    background-color: #b8860b;
+    padding: 8px;
+    border-radius: 6px;
+    flex: 1;
+    margin-left: 4px;
+    align-items: center;
+    justify-content: center;
+`;
+
+// Contenedor principal
 const MainContainer = styled(View)`
     flex: 1;
 `;
 
+// Barra inferior de pestañas
 const BottomTabBar = styled(View)`
     flex-direction: row;
     height: 60px;
-    background-color:rgba(26, 3, 51, 0.57);
+    background-color: rgba(121, 85, 28, 0.57);
     border-top-width: 1px;
     border-top-left-radius: 10px;
     border-top-right-radius: 10px;
-    border-top-color: rgba(255, 255, 255, 0.2);
+    border-top-color: rgba(245, 222, 179, 0.2);
     position: absolute;
     bottom: 0;
     left: 0;
@@ -1074,11 +998,11 @@ const TabButton = styled(TouchableOpacity)`
     align-items: center;
     justify-content: center;
     padding: 5px 0;
-    background-color: ${props => props.active ? 'rgba(255, 255, 255, 0.1)' : 'transparent'};
+    background-color: ${props => props.active ? 'rgba(245, 222, 179, 0.3)' : 'transparent'};
 `;
 
 const TabButtonText = styled(Text)`
-    color: white;
+    color: #f5deb3;
     font-size: 12px;
     margin-top: 4px;
     font-weight: ${props => props.active ? 'bold' : 'normal'};

@@ -383,7 +383,7 @@ function Inicio() {
                         {/* Products Section */}
                         <SectionContainer>
                             <SectionHeader>
-                                <Titulo>Productos Disponibles</Titulo>
+                                <Titulo>Zapatillas de caballeros Disponibles</Titulo>
                                 <ViewModeContainer>
                                     <ViewModeButton 
                                         active={viewMode === 'single'}
