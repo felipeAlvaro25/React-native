@@ -69,7 +69,7 @@ export default function Caballero() {
             let url = `${API_URL}?categoria=Caballero`;
 
             if (categoriaFiltro === 'Popular') {
-                url += '&Popular=true&limit=6'; // Popular y máximo 6
+                url += '&opular=true&limit=6'; // Popular y máximo 6
             } else if (categoriaFiltro !== 'todos') {
                 url += `&tipo=${categoriaFiltro}`;
             }

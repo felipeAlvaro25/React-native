@@ -24,7 +24,7 @@ try {
     $sql = "SELECT id, nombre, descripcion, precio, stock, categoria, 
                    imagenURL, color, talla, tipo, status, comprados, marca 
             FROM productos 
-            WHERE status = 'activo' AND categoria = 'ropa' AND LOWER(sexo) = 'caballero'";
+            WHERE status = 'activo' AND categoria = 'ropa' AND LOWER(sexo) = 'dama'";
 
     $params = [];
     $types = '';
