@@ -1,6 +1,8 @@
 import { AntDesign, Entypo, MaterialIcons } from "@expo/vector-icons";
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
+import { Link, router } from "expo-router";
+import { signOut } from 'firebase/auth';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Animated, Dimensions, FlatList, Image, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { styled } from "styled-components/native";
@@ -20,7 +22,7 @@ type Producto = {
     precio: number;
     stock: number;
     categoria: 'deportiva' | 'jeans' | 'de gala' | 'sueter' | 'abrigo' | 'popular';
-    tipo: 'pantalon' | 'camisa' | 'zapatos' | 'reloj'; // Nuevo campo para tipo específico
+    tipo: 'pantalon' | 'camisa' | 'zapatos' | 'reloj';
     imagenURL?: string;
     color?: string;
     talla?: string;
@@ -68,16 +70,15 @@ function Caballero() {
             const data = await response.json();
             
             if (data.success) {
-                // Filtrar solo los productos de tipo pantalón
                 const productosPantalones = data.productos.filter((p: any) => 
-                    p.tipo === 'pantalon' || p.tipo === 'jeans' // Ajusta según tus tipos
+                    p.tipo === 'pantalon' || p.tipo === 'jeans'
                 );
                 
                 setProductos(productosPantalones.map((p: any) => ({
                     ...p,
                     precio: Number(p.precio),
                     stock: Number(p.stock),
-                    tipo: p.tipo || 'pantalon', // Asignar un valor por defecto si no existe
+                    tipo: p.tipo || 'pantalon',
                     imagenURL: p.imagenURL ? 
                         p.imagenURL.startsWith('http') ? 
                             p.imagenURL : 
@@ -101,7 +102,6 @@ function Caballero() {
         ? productos.filter(p => p.categoria === 'popular')
         : productos.filter(p => p.categoria === categoriaFiltro);
 
-    // Resto del código permanece igual...
     const fetchUserProfile = async () => {
         if (!auth.currentUser?.uid) return;
         
@@ -122,7 +122,136 @@ function Caballero() {
         fetchUserProfile();
     }, []);
 
-    // ... (resto de las funciones como openSidebar, closeSidebar, renderItem, etc. permanecen igual)
+    const openSidebar = () => {
+        setSidebarVisible(true);
+        Animated.parallel([
+            Animated.timing(sidebarAnimation, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+            Animated.timing(overlayAnimation, {
+                toValue: 1,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    };
+
+    const closeSidebar = () => {
+        Animated.parallel([
+            Animated.timing(sidebarAnimation, {
+                toValue: -screenWidth * 0.8,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+            Animated.timing(overlayAnimation, {
+                toValue: 0,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+        ]).start(() => {
+            setSidebarVisible(false);
+        });
+    };
+
+    const renderItem = ({ item }: { item: Ruta }) => (
+        <Link href={item.href} asChild>
+            <SidebarLinkButton onPress={closeSidebar}>
+                <SidebarIconContainer>
+                    <Primero name="gitlab" size={24} />
+                </SidebarIconContainer>
+                <SidebarTextContainer>
+                    <SidebarTexto>{item.name}</SidebarTexto>
+                </SidebarTextContainer>
+                <SidebarIconContainer>
+                    <Flecha name="arrow-with-circle-right" size={20} />
+                </SidebarIconContainer>
+            </SidebarLinkButton>
+        </Link>
+    );
+
+    const renderProductoSingle = ({ item }: { item: Producto }) => (
+        <ProductoContainer>
+            <ProductoImageContainer>
+                {item.imagenURL ? (
+                    <ProductoImage source={{ uri: item.imagenURL }} resizeMode="cover" />
+                ) : (
+                    <PlaceholderImage>
+                        <MaterialIcons name="image" size={50} color="#ccc" />
+                    </PlaceholderImage>
+                )}
+            </ProductoImageContainer>
+            <ProductoInfo>
+                <ProductoNombre numberOfLines={2}>{item.nombre}</ProductoNombre>
+                <ProductoDescripcion numberOfLines={3}>{item.descripcion}</ProductoDescripcion>
+                
+                {(item.color || item.talla) && (
+                    <ProductoAtributosContainer>
+                        {item.color && (
+                            <ProductoAtributo>
+                                <ProductoColorCircle color={item.color.toLowerCase()} />
+                                <ProductoAtributoText>{item.color}</ProductoAtributoText>
+                            </ProductoAtributo>
+                        )}
+                        {item.talla && (
+                            <ProductoAtributo>
+                                <MaterialIcons name="straighten" size={14} color="#666" />
+                                <ProductoAtributoText>{item.talla}</ProductoAtributoText>
+                            </ProductoAtributo>
+                        )}
+                    </ProductoAtributosContainer>
+                )}
+                
+                <ProductoDetailsContainer>
+                    <ProductoPrecio>${item.precio.toFixed(2)}</ProductoPrecio>
+                    <ProductoStock>Stock: {item.stock}</ProductoStock>
+                </ProductoDetailsContainer>
+                
+                <CategoriaBadge categoria={item.categoria}>
+                    <CategoriaBadgeText>{item.categoria}</CategoriaBadgeText>
+                </CategoriaBadge>
+            </ProductoInfo>
+        </ProductoContainer>
+    );
+
+    const renderProductoDouble = ({ item }: { item: Producto }) => (
+        <ProductoContainerDouble>
+            <ProductoImageContainerDouble>
+                {item.imagenURL ? (
+                    <ProductoImage source={{ uri: item.imagenURL }} resizeMode="cover" />
+                ) : (
+                    <PlaceholderImageDouble>
+                        <MaterialIcons name="image" size={40} color="#ccc" />
+                    </PlaceholderImageDouble>
+                )}
+            </ProductoImageContainerDouble>
+            <ProductoInfoDouble>
+                <ProductoNombreDouble numberOfLines={2}>{item.nombre}</ProductoNombreDouble>
+                <ProductoDescripcionDouble numberOfLines={2}>{item.descripcion}</ProductoDescripcionDouble>
+                
+                <ProductoDetailsContainerDouble>
+                    <ProductoPrecioDouble>${item.precio.toFixed(2)}</ProductoPrecioDouble>
+                    <ProductoStockDouble>Stock: {item.stock}</ProductoStockDouble>
+                </ProductoDetailsContainerDouble>
+                
+                <CategoriaBadgeDouble categoria={item.categoria}>
+                    <CategoriaBadgeText>{item.categoria}</CategoriaBadgeText>
+                </CategoriaBadgeDouble>
+            </ProductoInfoDouble>
+        </ProductoContainerDouble>
+    );
+
+    const handleSignOut = async () => {
+        try {
+            await signOut(auth);
+            setUserProfile(null);
+            Alert.alert('Éxito', 'Sesión cerrada correctamente');
+            router.replace('/');
+        } catch (error: any) {
+            Alert.alert('Error', error.message);
+        }
+    };
 
     return (
         <>
@@ -147,7 +276,7 @@ function Caballero() {
                     
                     <SectionContainer>
                         <SectionHeader>
-                            <Titulo>Pantalones para Caballero</Titulo> {/* Cambiado el título */}
+                            <Titulo>Pantalones para Caballero</Titulo>
                             
                             <FilterScroll horizontal showsHorizontalScrollIndicator={false}>
                                 {categorias.map(cat => (
@@ -264,6 +393,9 @@ function Caballero() {
         </>
     );
 }
+
+// Todos los estilos permanecen exactamente igual que en el código original
+// (GradientBackground, BlurredOverlay, Container, HeaderSection, etc.)
 
 export default Caballero;
 
