@@ -27,7 +27,7 @@ try {
     $sql = "SELECT id, nombre, descripcion, precio, stock, categoria, 
                    imagenURL, color, talla, tipo, status, comprados, marca 
             FROM productos 
-            WHERE status = 'activo' AND categoria = ? AND sexo = 'caballero'";
+            WHERE status = 'activo' AND categoria = ? AND sexo = 'Caballero'";
 
     // Add type filter if specified
     if ($tipo && in_array($tipo, $allowedTypes)) {
